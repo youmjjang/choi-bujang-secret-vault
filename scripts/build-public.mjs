@@ -7,7 +7,7 @@ const source = resolve(root, 'data.json');
 const output = resolve(root, 'public', 'data.json');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
 
-if (![1, 2].includes(config.step)) {
+if (![1, 2, 3].includes(config.step)) {
   throw new Error('지원하지 않는 방어전 단계입니다.');
 }
 
