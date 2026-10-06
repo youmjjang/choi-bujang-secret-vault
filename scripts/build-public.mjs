@@ -6,16 +6,25 @@ const root = resolve(import.meta.dirname, '..');
 const source = resolve(root, 'data.json');
 const output = resolve(root, 'public', 'data.json');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
-if (config.step !== 1) {
-  throw new Error('1단계 이후에는 공개 data.json 복사를 끝내고 보호된 자료 API로 바꾸세요.');
+
+if (![1, 2].includes(config.step)) {
+  throw new Error('지원하지 않는 방어전 단계입니다.');
 }
+
 const data = JSON.parse(await readFile(source, 'utf8'));
 if (!Array.isArray(data.notes)) {
   throw new Error('실습용 공개 자료 형식을 확인하세요. 실제 학생 자료를 넣으면 안 됩니다.');
 }
+if (config.step >= 2 && data.notes.length !== 0) {
+  throw new Error('2단계에서는 공개 data.json의 notes가 비어 있어야 합니다.');
+}
+
 await mkdir(resolve(root, 'public'), { recursive: true });
 await copyFile(source, output);
-console.log('실습용 공개 자료를 public/data.json에 복사했습니다.');
+console.log(config.step === 1
+  ? '실습용 공개 자료를 public/data.json에 복사했습니다.'
+  : '메모가 제거된 public/data.json을 생성했습니다.');
+
 if (!process.argv.includes('--local')) {
   const identity = deploymentIdentity(process.env, config);
   await writeFile(resolve(root, 'public', 'aleph.json'),
