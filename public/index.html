@@ -10,24 +10,110 @@
     main { max-width: 760px; margin: 0 auto; padding: 44px 22px 64px; }
     .eyebrow { color: #8ad8df; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
     h1 { margin: 16px 0; font-size: clamp(30px, 7vw, 48px); line-height: 1.2; }
+    h2 { margin: 0 0 14px; font-size: 21px; }
     p { font-size: 17px; line-height: 1.7; color: #bfd0e5; }
-    .notice { margin: 26px 0; padding: 18px; border: 1px solid #d07384; border-radius: 14px; color: #ffe3e8; background: #612a3544; }
+    .notice, .auth-card { margin: 26px 0; padding: 18px; border-radius: 14px; }
+    .notice { border: 1px solid #d07384; color: #ffe3e8; background: #612a3544; }
+    .auth-card { border: 1px solid #51667c; background: #152438; }
+    .auth-grid { display: grid; gap: 12px; }
+    label { display: grid; gap: 6px; color: #dbe9f7; font-size: 14px; }
+    input, textarea, button { font: inherit; }
+    input, textarea { box-sizing: border-box; width: 100%; border: 1px solid #51667c; border-radius: 10px; background: #0f1b2a; color: #ecf4ff; padding: 11px 12px; }
+    button { border: 0; border-radius: 10px; padding: 11px 14px; background: #8ad8df; color: #0a1724; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #31465d; color: #ecf4ff; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .status { min-height: 24px; margin-top: 12px; color: #bfd0e5; }
+    .status.error { color: #ffb6c2; }
     ul { list-style: none; display: grid; gap: 12px; padding: 0; }
     li { border: 1px solid #51667c; border-radius: 14px; padding: 17px 19px; background: #1a2a3d; }
     strong { display: block; font-size: 18px; margin-bottom: 5px; }
     li span { color: #bfd0e5; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 2단계 자료 분리</div>
+    <div class="eyebrow">BYTE BACK · 3단계 로그인 준비</div>
     <h1>점령된 자료실</h1>
-    <p>가상 자료는 더 이상 공개 정적 파일에 두지 않고 서버 API가 학습용 DB에서 읽어옵니다.</p>
-    <div class="notice">정적 파일의 메모는 제거했지만, 이번 단계의 서버 API 주소는 아직 공개되어 있습니다. 접근 제어는 다음 단계에서 추가합니다.</div>
+    <p>가상 자료는 서버 API에서 읽고, 이번 단계부터 Supabase Auth로 로그인 상태를 확인합니다.</p>
+
+    <section class="auth-card" aria-labelledby="auth-title">
+      <h2 id="auth-title">로그인</h2>
+      <form id="login-form" class="auth-grid">
+        <label>이메일
+          <input id="email" name="email" type="email" autocomplete="username" required>
+        </label>
+        <label>비밀번호
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <div class="actions">
+          <button id="login-button" type="submit">로그인</button>
+          <button id="logout-button" class="secondary" type="button" hidden>로그아웃</button>
+        </div>
+      </form>
+      <div id="auth-status" class="status" aria-live="polite">로그아웃 상태입니다.</div>
+    </section>
+
+    <div class="notice">로그인 화면을 붙였습니다. 자료 API의 토큰 검사는 다음 제작 단위에서 연결합니다.</div>
     <ul id="notes" aria-live="polite"><li>가상 자료를 불러오는 중입니다.</li></ul>
   </main>
+
   <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
+
+    const SUPABASE_URL = 'https://lktbmcgmnfcundifrvxs.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_5XCGZF2Z8jTqOgPXNKoQlQ_TlHywr3n';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+    const loginForm = document.querySelector('#login-form');
+    const loginButton = document.querySelector('#login-button');
+    const logoutButton = document.querySelector('#logout-button');
+    const authStatus = document.querySelector('#auth-status');
     const list = document.querySelector('#notes');
+
+    function renderAuth(session) {
+      const loggedIn = Boolean(session?.user);
+      loginButton.hidden = loggedIn;
+      logoutButton.hidden = !loggedIn;
+      document.querySelector('#email').disabled = loggedIn;
+      document.querySelector('#password').disabled = loggedIn;
+      authStatus.classList.remove('error');
+      authStatus.textContent = loggedIn
+        ? `로그인됨: ${session.user.email ?? '인증된 사용자'}`
+        : '로그아웃 상태입니다.';
+    }
+
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      authStatus.classList.remove('error');
+      authStatus.textContent = '로그인 확인 중입니다.';
+      const email = document.querySelector('#email').value.trim();
+      const password = document.querySelector('#password').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        authStatus.classList.add('error');
+        authStatus.textContent = `로그인 실패: ${error.message}`;
+        return;
+      }
+      document.querySelector('#password').value = '';
+      renderAuth(data.session);
+    });
+
+    logoutButton.addEventListener('click', async () => {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        authStatus.classList.add('error');
+        authStatus.textContent = `로그아웃 실패: ${error.message}`;
+        return;
+      }
+      renderAuth(null);
+    });
+
+    const { data: { session } } = await supabase.auth.getSession();
+    renderAuth(session);
+    supabase.auth.onAuthStateChange((_event, nextSession) => renderAuth(nextSession));
+
     try {
       const response = await fetch('/api/notes', { cache: 'no-store' });
       if (!response.ok) throw new Error('서버 자료를 읽을 수 없습니다.');
