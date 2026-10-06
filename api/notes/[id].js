@@ -29,6 +29,10 @@ function validText(value, max) {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 }
 
+function hasOwnerField(payload) {
+  return payload && Object.prototype.hasOwnProperty.call(payload, 'owner_id');
+}
+
 function noteResponse(note) {
   return { id: note.note_id, title: note.title, body: note.content };
 }
@@ -58,8 +62,9 @@ export default async function handler(request, response) {
   if (request.method === 'GET') {
     const { data, error } = await supabase
       .from('learning_notes')
-      .select('note_id, title, content')
+      .select('note_id, title, content, owner_id')
       .eq('note_id', rawId)
+      .eq('owner_id', login.userId)
       .maybeSingle();
 
     if (error) return response.status(500).json({ error: 'Unable to load note' });
@@ -69,19 +74,35 @@ export default async function handler(request, response) {
 
   if (request.method === 'PUT') {
     const payload = bodyObject(request);
-    if (!payload || !validText(payload.title, 200) || !validText(payload.body, 5000)) {
+    if (!payload || hasOwnerField(payload)) {
+      return response.status(400).json({ error: 'owner_id는 수정할 수 없습니다.' });
+    }
+    if (!validText(payload.title, 200) || !validText(payload.body, 5000)) {
       return response.status(400).json({ error: 'title과 body를 확인해 주세요.' });
     }
+
+    const { data: existing, error: existingError } = await supabase
+      .from('learning_notes')
+      .select('note_id, owner_id')
+      .eq('note_id', rawId)
+      .eq('owner_id', login.userId)
+      .maybeSingle();
+
+    if (existingError) return response.status(500).json({ error: 'Unable to load note' });
+    if (!existing) return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
 
     const { data, error } = await supabase
       .from('learning_notes')
       .update({ title: payload.title.trim(), content: payload.body.trim() })
       .eq('note_id', rawId)
-      .select('note_id, title, content')
+      .eq('owner_id', login.userId)
+      .select('note_id, title, content, owner_id')
       .maybeSingle();
 
     if (error) return response.status(500).json({ error: 'Unable to update note' });
-    if (!data) return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
+    if (!data || data.owner_id !== login.userId) {
+      return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
+    }
     return response.status(200).json(noteResponse(data));
   }
 
@@ -89,10 +110,13 @@ export default async function handler(request, response) {
     .from('learning_notes')
     .delete()
     .eq('note_id', rawId)
-    .select('note_id')
+    .eq('owner_id', login.userId)
+    .select('note_id, owner_id')
     .maybeSingle();
 
   if (error) return response.status(500).json({ error: 'Unable to delete note' });
-  if (!data) return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
+  if (!data || data.owner_id !== login.userId) {
+    return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
+  }
   return response.status(204).end();
 }
