@@ -30,6 +30,10 @@ function validText(value, max) {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 }
 
+function hasOwnerField(payload) {
+  return payload && Object.prototype.hasOwnProperty.call(payload, 'owner_id');
+}
+
 export default async function handler(request, response) {
   if (!['GET', 'POST'].includes(request.method)) {
     response.setHeader('Allow', 'GET, POST');
@@ -66,7 +70,10 @@ export default async function handler(request, response) {
   }
 
   const payload = bodyObject(request);
-  if (!payload || !validText(payload.title, 200) || !validText(payload.body, 5000)) {
+  if (!payload || hasOwnerField(payload)) {
+    return response.status(400).json({ error: 'owner_id는 요청 본문에서 지정할 수 없습니다.' });
+  }
+  if (!validText(payload.title, 200) || !validText(payload.body, 5000)) {
     return response.status(400).json({ error: 'title과 body를 확인해 주세요.' });
   }
 
