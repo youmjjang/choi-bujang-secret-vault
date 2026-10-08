@@ -1,5 +1,4 @@
-import patterns from './patterns.json' with { type: 'json' };
-import { normalize } from './read-alerts.mjs';
+import { normalize } from './normalize.mjs';
 import { askJev } from './jev.mjs';
 
 // Inject an adapter for tests; the default calls TypeSafe only if a server key exists.
@@ -16,7 +15,7 @@ export function createDecider({ jev } = {}) {
     const spray = /같은 비밀번호/.test(text) || /계정\s*(\d+)개/.test(text) && Number(text.match(/계정\s*(\d+)개/)[1]) >= 20 && /같은 간격/.test(text);
     // Password-spraying descriptions may say "넣었습니다" rather than failure.
     if (technique && row.sourceIp && row.account && row.timestamp && row.level >= 10 && (burst || spray)) {
-      return { action: 'block', confidence: 0.95, reason: `${patterns[spray ? 1 : 0].name}: 반복 인증 공격 근거` };
+      return { action: 'block', confidence: 0.95, reason: `${spray ? 'password-spraying' : 'repeated-failure'}: 반복 인증 공격 근거` };
     }
     try {
       if (typeof jev !== 'function') throw new Error('Jev unavailable');
