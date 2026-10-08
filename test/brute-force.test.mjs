@@ -7,6 +7,12 @@ import { askJev } from '../xdr/brute-force/jev.mjs';
 const event = { id: 'test-1', timestamp: new Date().toISOString(), data: { srcip: '192.0.2.5', srcuser: 'user01', count: '48' }, rule: { level: 12, mitre: ['T1110'], description: '2분 안 로그인 실패 48건' } };
 test('attack evidence independent of fixture ID', async () => assert.equal((await decide(event)).action, 'block'));
 test('normal success remains record even with high level', async () => assert.equal((await decide({ ...event, rule: { ...event.rule, description: '로그인이 성공했습니다.' } })).action, 'record'));
+test('one low-level login mistake followed by success is recorded without calling Jev', async () => {
+  const classify = createDecider({ jev: async () => { assert.fail('normal events must not call Jev'); } });
+  const normal = { ...event, data: { ...event.data, count: '1' }, rule: { level: 3, mitre: [], description: '로그인 실패 1건 뒤에 성공했습니다.' } };
+  assert.equal((await classify(normal)).action, 'record');
+  assert.equal((await classify({ ...normal, data: { ...normal.data, count: '4' }, rule: { ...normal.rule, level: 6, mitre: ['T1110'] } })).action, 'alert');
+});
 test('slow failures remain uncertain', async () => assert.equal((await decide({ ...event, rule: { ...event.rule, description: '60분 로그인 실패 48건' } })).action, 'alert'));
 test('Jev unavailable and invalid results alert', async () => {
   const alert = { ...event, data: { ...event.data, count: '4' } };

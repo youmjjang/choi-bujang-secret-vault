@@ -130,9 +130,9 @@
     },
     {
       "alertId": "bf-22",
-      "action": "alert",
-      "confidence": 0.5,
-      "reason": "uncertain-failure: Jev 미응답, 알림 유지"
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "normal-event: 단일 실패 후 정상 로그인"
     },
     {
       "alertId": "bf-23",
@@ -173,7 +173,7 @@
   ],
   "counts": {
     "block": 10,
-    "alert": 10,
-    "record": 8
+    "alert": 9,
+    "record": 9
   }
 }

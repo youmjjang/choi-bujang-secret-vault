@@ -10,6 +10,11 @@ export function createDecider({ jev } = {}) {
     const failure = /실패|같은 비밀번호.*(?:넣|대입)/.test(text);
     if (!failure) return { action: 'record', confidence: 0.1, reason: 'normal-event: 실패 신호 없음' };
     const technique = alert?.rule?.mitre?.some(id => /^T1110(?:\.|$)/.test(id));
+    // A single low-severity mistake followed by success, with no attack
+    // technique attached, is routine authentication activity.
+    if (!technique && row.level <= 3 && count === 1 && /뒤.*성공/.test(text)) {
+      return { action: 'record', confidence: 0.1, reason: 'normal-event: 단일 실패 후 정상 로그인' };
+    }
     const minutes = text.match(/(\d+)분/);
     const burst = count >= 30 && (!minutes || Number(minutes[1]) <= 3);
     const spray = /같은 비밀번호/.test(text) || /계정\s*(\d+)개/.test(text) && Number(text.match(/계정\s*(\d+)개/)[1]) >= 20 && /같은 간격/.test(text);

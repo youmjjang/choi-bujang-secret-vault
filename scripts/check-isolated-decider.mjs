@@ -19,5 +19,5 @@ await module.evaluate();
 const fixture = JSON.parse(await readFile(new URL('../xdr/fixtures/brute-force.json', import.meta.url)));
 const counts = { block: 0, alert: 0, record: 0 };
 for (const alert of fixture.alerts) counts[(await module.namespace.decide(alert)).action]++;
-assert.deepEqual(counts, { block: 10, alert: 10, record: 8 });
+assert.deepEqual(counts, { block: 10, alert: 9, record: 9 });
 console.log('Isolated runtime without Node globals: ' + JSON.stringify(counts));
