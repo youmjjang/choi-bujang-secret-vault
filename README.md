@@ -54,3 +54,29 @@ npm run build -- --local
 Production에서는 Vercel의 서버 전용 환경변수를 유지한 채 GitHub `main`을 배포합니다.
 
 비밀번호, JWT, 서버 전용 키, 실제 개인정보와 실제 메모 본문은 코드·로그·README·Git 커밋에 넣지 않습니다.
+
+## 보너스 XDR-01 제작 상태
+
+공식 시작 저장소의 Wazuh 형식 시험 경보와 실행기를 가져왔습니다. 원본 경보는 변경하지 않았습니다.
+`read-alerts.mjs`는 경보당 시각·출발 주소·계정·수준·설명 다섯 항목을 읽으며 비밀값을 제거합니다.
+`patterns.json`은 MITRE ATT&CK T1110.001/T1110.003 근거를 기록합니다. 수치 임계값은 수업용 로컬 정책입니다.
+명확한 반복 실패/비밀번호 분사는 규칙으로 판단하고, 애매한 실패만 Jev로 보냅니다.
+확신도 0.85 이상 block, 0.5 이상 alert, 그 아래 record이며 Jev 장애·키 미설정은 alert입니다.
+
+실행: `npm run xdr:run -- brute-force` → `xdr/brute-force/result.json`.
+추가 검증: `npm run xdr:check`, `npm run test:xdr`.
+Jev의 공식 API는 https://api.typesafe.ai/v1/systemone 입니다.
+https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` 비밀 환경변수로 설정합니다.
+키를 채팅·Git·브라우저 코드에 넣지 않습니다. Jev에는 원본 IP·계정·비밀번호 대신 실패 건수 등 파생 지표만 보냅니다.
+현재 실제 Jev 호출은 미실행이며 키 없는 fallback과 모의 API 응답만 검증했습니다.
+
+`enforce.mjs`는 기존 판정 함수를 유지하는 sidecar 연결과 15분 임시 거부 규칙을 제공합니다.
+각 규칙에 근거 경보 번호·생성 시각·만료 시각을 기록합니다. `xdr:check`는 시험 시각에 재생하며
+`replay-deny-rules.json`과 `xdr/alerts.log`를 만들지만 실제 차단 규칙과 구분합니다.
+과거 시험 경보로 현재 유효한 운영 차단을 생성하지 않습니다. 이 파일들은 Git에서 제외합니다.
+
+**운영 연결은 미완료입니다.** 이 저장소에는 6단계 SDP 판정기와 운영 릴레이가 없습니다.
+공식 SDP 요청 계약에는 출발 IP도 없습니다. 운영에서 검증한 출발 주소를 sidecar에 전달하는
+계약과 허용 reasonCode를 확인해야 실제 ZTNA에 연결할 수 있습니다. 임의 IP 필드나 신뢰할 수 없는
+브라우저 헤더를 만들어 차단하지 않습니다. 5단계 로그인·메모 API와 설정은 보존했습니다.
+로컬 재생 결과나 모의 연동 검증을 심판 통과·운영 방어 완료로 표현하지 않습니다.
