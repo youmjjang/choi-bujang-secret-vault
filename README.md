@@ -80,3 +80,19 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 계약과 허용 reasonCode를 확인해야 실제 ZTNA에 연결할 수 있습니다. 임의 IP 필드나 신뢰할 수 없는
 브라우저 헤더를 만들어 차단하지 않습니다. 5단계 로그인·메모 API와 설정은 보존했습니다.
 로컬 재생 결과나 모의 연동 검증을 심판 통과·운영 방어 완료로 표현하지 않습니다.
+
+## 보너스 XDR-02 저장점
+
+`xdr/web-injection/`은 웹 입력 조작 경보를 처리합니다. SQL 구문 결합, 스크립트 삽입,
+경로 이탈, 명령 구분자 근거와 반복 건수를 함께 봅니다. 고수준 경보(10 이상)·5회 이상
+반복·명확한 주입 근거가 모두 있을 때만 규칙 기반 차단 후보가 됩니다. MITRE T1190에
+근거를 기록하되 수치 임계값은 로컬 정책으로 구분했습니다. 단독 수업 단어나 따옴표는
+차단 근거가 아닙니다. 애매한 경보만 Jev에 파생 지표로 질문하고 실패하면 alert로 유지합니다.
+
+실행: `npm run xdr:run -- web-injection`.
+재생·차단 만료·정상 통과 확인: `npm run xdr:check:web`.
+검증: `npm run test:xdr` 및 `node --experimental-vm-modules scripts/check-isolated-decider.mjs web-injection`.
+판단 모듈은 Node 내장 모듈·npm 패키지를 import하지 않으며 경보 읽기는 별도 파일입니다.
+알림은 로컬 `xdr/alerts.log`, 재생 차단은 해당 모듈의 `replay-deny-rules.json`에 남깁니다.
+운영 차단 연결과 Jev 실호출의 미확인 범위는 위 XDR-01과 같습니다. 정상 요청이 통과하는
+기존 로그인·메모 API를 바꾸지 않았습니다.

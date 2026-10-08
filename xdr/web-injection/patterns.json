@@ -1,0 +1,7 @@
+[
+  {"name":"sql-injection","condition":"인자에 SQL 구문 결합·조회 연쇄·논리 조건 형태 또는 이를 확인한 경보가 반복됨","evidence":"MITRE ATT&CK T1190은 공개 앱 취약점 악용과 SQL 주입 사례를 설명한다. 단독 SQL/select 단어는 공격 확정 근거가 아니다.","source":"https://attack.mitre.org/techniques/T1190/"},
+  {"name":"script-injection","condition":"실행 가능한 스크립트 태그·이벤트 핸들러 또는 삽입을 확인한 경보가 반복됨","evidence":"T1190 공개 웹 앱 악용 범주의 입력 취약점 탐지. OWASP XSS Prevention은 신뢰하지 않는 입력이 실행 가능한 스크립트가 되는 위험을 설명한다.","source":"https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"},
+  {"name":"path-traversal","condition":"../ 또는 ..\\가 여러 단계로 이어지거나 경로 이탈을 확인한 경보가 반복됨","evidence":"MITRE T1190의 공개 앱 악용 사례에는 directory traversal이 포함된다. 단어 up 자체는 이탈 증거가 아니다.","source":"https://attack.mitre.org/techniques/T1190/"},
+  {"name":"command-injection","condition":"명령 구분자와 실행 구문 결합 또는 구분자를 확인한 경보가 반복됨","evidence":"MITRE T1190은 공개 앱의 command injection 취약점 악용 사례를 포함한다. 구분 문자 하나만으로 차단하지 않는다.","source":"https://attack.mitre.org/techniques/T1190/"},
+  {"name":"uncertain-web-input","condition":"주입 경보이나 반복·실행 구문 근거 부족","evidence":"T1190 탐지를 위한 입력 상관 분석. 수업 단어·따옴표·긴 주소만으로 취약점 악용을 확정할 수 없다.","source":"https://attack.mitre.org/techniques/T1190/"}
+]

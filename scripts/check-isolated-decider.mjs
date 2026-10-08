@@ -14,10 +14,12 @@ async function load(url) {
   });
   return module;
 }
-const module = await load(new URL('../xdr/brute-force/decide.mjs', import.meta.url));
+const moduleKey = process.argv[2] || 'brute-force';
+assert.ok(['brute-force', 'web-injection'].includes(moduleKey));
+const module = await load(new URL(`../xdr/${moduleKey}/decide.mjs`, import.meta.url));
 await module.evaluate();
-const fixture = JSON.parse(await readFile(new URL('../xdr/fixtures/brute-force.json', import.meta.url)));
+const fixture = JSON.parse(await readFile(new URL(`../xdr/fixtures/${moduleKey}.json`, import.meta.url)));
 const counts = { block: 0, alert: 0, record: 0 };
 for (const alert of fixture.alerts) counts[(await module.namespace.decide(alert)).action]++;
-assert.deepEqual(counts, { block: 10, alert: 9, record: 9 });
+assert.deepEqual(counts, moduleKey === 'brute-force' ? { block: 10, alert: 9, record: 9 } : { block: 8, alert: 9, record: 9 });
 console.log('Isolated runtime without Node globals: ' + JSON.stringify(counts));
