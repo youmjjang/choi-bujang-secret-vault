@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { SourceTextModule, SyntheticModule, createContext } from 'node:vm';
 import { resourceId } from '../src/resource-id.mjs';
+import { noteTarget } from '../src/note-target.mjs';
 
 async function invoke(file, { method = 'GET', data, body, userId = 'fixture_a' } = {}) {
   const filters = [];
@@ -20,6 +21,7 @@ async function invoke(file, { method = 'GET', data, body, userId = 'fixture_a' }
     const exports = specifier.includes('supabase') ? { createClient: () => db }
       : specifier.includes('verify-login') ? { createLoginVerifier: () => async () => userId ? { userId } : null }
       : specifier.includes('resource-id') ? { resourceId }
+      : specifier.includes('note-target') ? { noteTarget }
       : specifier === 'node:crypto' ? { randomUUID: () => 'aabbccdd-1234-4567-89ab-123456789abc' }
       : { default: {} };
     return new SyntheticModule(Object.keys(exports), function () {
@@ -30,6 +32,7 @@ async function invoke(file, { method = 'GET', data, body, userId = 'fixture_a' }
   const response = { headers: {}, setHeader(k, v) { this.headers[k] = v; },
     status(code) { this.code = code; return this; }, json(value) { this.body = value; return this; }, end() { return this; } };
   await module.namespace.default({ method, headers: {}, body,
+    url: '/api/notes/aabbccdd-1234-4567-89ab-123456789abc',
     query: { id: 'aabbccdd-1234-4567-89ab-123456789abc' } }, response);
   return { response, filters, operations };
 }

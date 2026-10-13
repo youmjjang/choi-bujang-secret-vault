@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import config from '../../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from '../../src/verify-login.mjs';
 import { resourceId } from '../../src/resource-id.mjs';
+import { noteTarget } from '../../src/note-target.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -53,8 +54,9 @@ export default async function handler(request, response) {
     return response.status(401).json({ error: '로그인이 필요합니다.' });
   }
 
-  const rawId = Array.isArray(request.query?.id) ? request.query.id[0] : request.query?.id;
+  const rawId = noteTarget(request);
   if (typeof rawId !== 'string' || !UUID.test(rawId)) {
+    response.setHeader('X-Aleph-Deny-Reason', 'invalid_resource_path');
     return response.status(400).json({ error: '올바른 메모 UUID가 필요합니다.' });
   }
 
