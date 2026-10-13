@@ -34,7 +34,7 @@ export function readConnectionInput(request) {
 
 export function createDecider(bindings) {
   const permitted = createResourcePolicy(bindings);
-  return async function decide(request) {
+  return function decide(request) {
   const response = (decision, reasonCode, ruleId) => ({
     schema: 'aleph.decision.v1',
     requestId: request.requestId,

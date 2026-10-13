@@ -151,6 +151,8 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 
 ## 8단계 저장점
 
+호출 호환성 최소 수정: 판정 내부에 비동기 작업이 없는데 async로 선언되어 직접 호출의 result.decision이 undefined였습니다. 정상 입력에서 직접 호출은 값 없음, await 호출은 allow인 것을 재현했습니다. async 한 단어를 제거해 두 호출 방식 모두 동일한 응답 객체를 받도록 했습니다. 권한 조건은 변경하지 않았습니다. 확인: node --test test/decider-return.test.mjs. 운영 심판이 직접 호출하는지는 확인되지 않았으므로 S08_OWN_BROKEN 해결은 재판정 전까지 미확인입니다.
+
 본인 목록 경로 보완: 공식 표본의 GET /api/my/notes가 누락된 것을 확인해 판정기와 읽기 전용 API에 추가했습니다. 기존 메모 API의 로그인 검증 및 owner_id 필터를 그대로 호출하므로 다른 사람 목록을 반환하지 않습니다. 심판 요청 원문은 공개되지 않아 이 누락이 S08_OWN_BROKEN의 유일한 원인인지는 재판정 전까지 미확인입니다.
 
 최신 수정: S08_OWN_BROKEN은 판정기의 기본 허용 목록이 로컬 연습용 주체에만 묶여 정상 엔진 요청을 거부한 문제였습니다. 공식 통과 목표 표본의 구역 구분에 따라 정확한 GET /notes/:id 및 GET /api/notes/:id 읽기는 등록 기기와 입력 검사를 거쳐 자료 API로 보냅니다. 소유권은 API의 검증된 사용자와 저장된 owner_id 비교로 집행합니다. 목록·쓰기·알 수 없는 기능 경로의 기존 제한은 유지합니다. 참고: https://github.com/ChoiTimo/byteback-sample-pass/blob/main/src/decider.mjs
