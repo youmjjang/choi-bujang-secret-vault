@@ -28,3 +28,13 @@ test('unverified ownership never grants note updates; device denial is preserved
   assert.equal((await decide(request)).decision, 'deny');
   assert.equal((await decide({ ...request, deviceRegistered: false })).reasonCode, 'device_not_registered');
 });
+
+test('collection route cannot bypass fixture subject, project or class scope', async () => {
+  const { normal } = fixtureRequests();
+  const collection = { ...normal, path: '/notes', route: 'GET /notes' };
+  assert.equal((await decide(collection)).decision, 'allow');
+  for (const changed of [{ subjectId: 'other_fixture_user' }, { projectId: 'other_project' },
+    { classId: 'other_class' }]) {
+    assert.equal((await decide({ ...collection, ...changed })).decision, 'deny');
+  }
+});

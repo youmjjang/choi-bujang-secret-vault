@@ -51,14 +51,15 @@ export async function decide(request) {
 
   // The v1 contract has no verified owner mapping or instructor grant.
   // Never infer either from subjectId, a client role, query, or response header.
-  const collectionRead = request.service === 'notes' && request.method === 'GET'
+  const fixtureScope = connection.kind === 'judge_fixture'
+    && request.classId === 'class_fixture' && request.projectId === 'project_fixture'
+    && request.subjectId === 'learner_fixture';
+  const collectionRead = fixtureScope && request.service === 'notes' && request.method === 'GET'
     && request.route === 'GET /notes' && request.path === '/notes';
   // UUID syntax proves only the resource address, never its ownership.
   // Keep the published local fixture narrowly scoped; real resources require an
   // engine-provided owner binding before the decision layer can authorize them.
-  const fixtureDemo = connection.kind === 'judge_fixture' && request.path === '/notes/demo'
-    && request.classId === 'class_fixture' && request.projectId === 'project_fixture'
-    && request.subjectId === 'learner_fixture';
+  const fixtureDemo = fixtureScope && request.path === '/notes/demo';
   const itemRead = request.service === 'notes' && request.method === 'GET'
     && request.route === 'GET /notes/:id' && fixtureDemo;
   // Raw query is not exposed by the contract: do not guess which function it selects.
