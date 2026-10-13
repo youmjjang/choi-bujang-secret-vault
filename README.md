@@ -1,10 +1,10 @@
-# BYTE BACK 방어전 5단계 저장점
+# BYTE BACK 방어전 6단계 저장점
 
-현재 저장소는 **5단계: 자료 요청을 서버 한곳으로 모읍니다** 상태입니다.
+현재 저장소는 **6단계: 등록한 기기만 자료실에 들어옵니다**의 학생 판정기 구현 상태입니다. 기존 5단계 서비스와 보너스 XDR 작업은 유지합니다.
 
 - 저장소: https://github.com/youmjjang/choi-bujang-secret-vault
 - Production: https://choi-bujang-secret-vault-6trg.vercel.app
-- 단계 설정: `aleph.config.json`의 `step: 5`
+- 단계 설정: `aleph.config.json`의 `step: 6`
 - 원본 자료 API: `https://lktbmcgmnfcundifrvxs.supabase.co/rest/v1/learning_notes`
 
 ## 현재 동작
@@ -108,3 +108,11 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 5. 이 명령은 가상 요청 연습이며 운영 릴레이와 심판의 미등록 기기 공격 검증을 대신하지 않습니다. 미등록 기기 공격은 심판이 수행합니다.
 
 검증 기록: 판정 코드와 두 가상 요청을 로컬에 재구성하여 `npm run decider:test`를 실행했을 때 두 항목이 통과했습니다. 저장소 전체를 그대로 체크아웃해 공식 스크립트를 실행한 결과는 아직 확인하지 않았습니다. 실제 심판 판정·운영 연결·배포는 미확인입니다.
+
+## 6단계 저장점과 제출 묶음 상태
+
+- 판정 규칙: `device_registered` (등록된 기기 + 자료실 읽기 요청만 `allow`; 미등록/누락은 `deny` · `device_not_registered`). 다른 요청은 `starter.deny` 유지.
+- 로컬 확인 명령: `npm run decider:test`. 시험 요청은 심판의 공격 판정이 아닙니다.
+- 제출 묶음 명령: `npm run bundle`. 실행 전에 Git 작업 트리가 깨끗하고, Git에서 제외된 `bundle-notes.json`과 실제 확인 결과를 기록하는 `src/attack-check.mjs`가 필요합니다.
+- 본 저장점에서는 별도 접속 프로그램, 인증서, 개인키를 생성하지 않았습니다. 운영 릴레이 연결 및 심판 방어 결과는 미확인입니다.
+- 작성 환경에서 GitHub 저장소 복제가 네트워크 DNS 문제로 실패했으므로 전체 저장소 대상으로 `npm run bundle`을 실제 완료했다고 주장하지 않습니다. 실행 로그와 제출 JSON은 추후 현지 확인이 필요합니다.
