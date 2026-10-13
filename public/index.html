@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BYTE BACK | 내 자료실</title>
+  <meta name="theme-color" content="#152438">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; }
     body { margin: 0; min-height: 100vh; background: #101a28; color: #ecf4ff; }
@@ -38,9 +41,19 @@
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 5단계 서버 한곳으로</div>
+    <div class="eyebrow">BYTE BACK · 11단계 접속 앱</div>
     <h1>내 자료실</h1>
     <p>Supabase Auth로 로그인하고, 서버가 검증한 사용자 ID를 기준으로 내 가상 메모 목록과 추가 작업을 처리합니다.</p>
+    <section class="panel" aria-labelledby="device-title">
+      <h2 id="device-title">이 기기의 승인 상태</h2>
+      <p>브라우저 메뉴에서 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 사용할 수 있습니다. 설치 표시와 기기 승인은 별개입니다.</p>
+      <p id="connection-status" aria-live="polite"></p>
+      <div id="device-status" class="status" aria-live="polite">로그인 후 서버에 기기 승인을 확인합니다. 승인 전에는 자료를 표시하지 않습니다.</div>
+      <div class="actions">
+        <button id="request-device" type="button" disabled>기기 승인 요청</button>
+        <button id="check-device" class="secondary" type="button" disabled>승인 상태 다시 확인</button>
+      </div>
+    </section>
 
     <section class="panel" aria-labelledby="auth-title">
       <h2 id="auth-title">로그인</h2>
@@ -81,7 +94,9 @@
   </main>
 
   <script type="module">
-    const SESSION_KEY = 'byte-back-session';
+    import { createDeviceGate } from '/device-gate.mjs';
+    // Remove the legacy persisted login. New tokens stay in this page's memory.
+    try { sessionStorage.removeItem('byte-back-session'); } catch { /* Storage disabled. */ }
 
     const loginForm = document.querySelector('#login-form');
     const loginButton = document.querySelector('#login-button');
@@ -98,6 +113,70 @@
 
     let currentSession = null;
     let editingId = null;
+    const deviceStatus = document.querySelector('#device-status');
+    const requestDevice = document.querySelector('#request-device');
+    const checkDevice = document.querySelector('#check-device');
+    const deviceGate = createDeviceGate({
+      fetchStatus: async () => {
+        const response = await fetch('/api/device/status', {
+          headers: { Authorization: `Bearer ${currentSession.access_token}` }, cache: 'no-store',
+        });
+        return { status: response.status, body: await response.json() };
+      },
+      clearMaterials: () => {
+        editorPanel.hidden = true;
+        resetEditor();
+        renderMessage('서버의 기기 승인 전에는 보호 자료를 표시하지 않습니다.');
+      },
+      openMaterials: async () => {
+        if (!currentSession?.access_token || !navigator.onLine) return;
+        editorPanel.hidden = false;
+        await loadNotes();
+      },
+    });
+
+    async function checkApproval() {
+      deviceStatus.textContent = '서버에 기기 승인 여부를 확인하는 중입니다.';
+      try {
+        const approved = await deviceGate.check();
+        deviceStatus.textContent = approved
+          ? '서버가 이 기기를 승인했습니다.'
+          : '아직 승인되지 않았습니다. 승인 전에는 자료를 표시하지 않습니다.';
+      } catch {
+        deviceGate.reset();
+        deviceStatus.textContent = '승인 여부를 확인할 수 없습니다. 연결 후 다시 확인해 주세요.';
+      }
+    }
+
+    function updateConnection() {
+      document.querySelector('#connection-status').textContent = navigator.onLine
+        ? '온라인 · 승인 상태는 서버에서 확인합니다.'
+        : '오프라인 · 서버에 연결할 수 없어 보호 자료를 표시하지 않습니다.';
+      if (!navigator.onLine) deviceGate.reset();
+    }
+    window.addEventListener('offline', updateConnection);
+    window.addEventListener('online', () => {
+      updateConnection();
+      if (currentSession) void checkApproval();
+    });
+    requestDevice.addEventListener('click', async () => {
+      deviceGate.reset();
+      requestDevice.disabled = true;
+      try {
+        const response = await fetch('/api/device/request', {
+          method: 'POST', headers: { Authorization: `Bearer ${currentSession.access_token}` },
+          cache: 'no-store',
+        });
+        const result = await response.json();
+        deviceStatus.textContent = response.ok && result.accepted === true
+          ? '승인 요청을 접수했습니다. 서버의 승인 결과를 기다립니다.'
+          : '기기 승인 요청을 접수하지 못했습니다. 제공 엔진의 승인 연결이 필요합니다.';
+        // A button click or accepted request never opens the vault.
+      } catch {
+        deviceStatus.textContent = '요청을 보내지 못했습니다. 연결 후 다시 시도해 주세요.';
+      } finally { requestDevice.disabled = !currentSession; }
+    });
+    checkDevice.addEventListener('click', () => void checkApproval());
 
     function renderMessage(message) {
       const item = document.createElement('li');
@@ -109,7 +188,9 @@
       const loggedIn = Boolean(session?.user);
       loginButton.hidden = loggedIn;
       logoutButton.hidden = !loggedIn;
-      editorPanel.hidden = !loggedIn;
+      editorPanel.hidden = !loggedIn || !deviceGate.approved;
+      requestDevice.disabled = !loggedIn;
+      checkDevice.disabled = !loggedIn;
       document.querySelector('#email').disabled = loggedIn;
       document.querySelector('#password').disabled = loggedIn;
       authStatus.classList.remove('error');
@@ -131,6 +212,7 @@
 
     async function apiRequest(path, options = {}) {
       if (!currentSession?.access_token) throw new Error('로그인이 필요합니다.');
+      if (!deviceGate.approved || !navigator.onLine) throw new Error('서버의 기기 승인이 필요합니다.');
       const headers = new Headers(options.headers || {});
       headers.set('Authorization', `Bearer ${currentSession.access_token}`);
       if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
@@ -207,13 +289,15 @@
     }
 
     async function loadNotes() {
-      if (!currentSession?.access_token) {
-        renderMessage('로그인 후 가상 메모를 확인할 수 있습니다.');
+      if (!currentSession?.access_token || !deviceGate.approved || !navigator.onLine) {
+        deviceGate.reset();
         return;
       }
       renderMessage('가상 메모를 불러오는 중입니다.');
+      const loadingSession = currentSession;
       try {
         const notes = await apiRequest('/api/notes');
+        if (loadingSession !== currentSession || !deviceGate.approved || !navigator.onLine) return;
         if (!Array.isArray(notes)) throw new Error('자료 형식이 맞지 않습니다.');
         renderNotes(notes);
       } catch (error) {
@@ -222,9 +306,11 @@
     }
 
     async function applySession(session) {
+      deviceGate.reset();
       currentSession = session;
       renderAuth(session);
-      await loadNotes();
+      if (session) await checkApproval();
+      else deviceStatus.textContent = '로그인 후 서버에 기기 승인을 확인합니다.';
     }
 
     loginForm.addEventListener('submit', async (event) => {
@@ -249,7 +335,6 @@
           access_token: data.accessToken,
           user: { email: data.email || email },
         };
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
         document.querySelector('#password').value = '';
         await applySession(session);
       } catch (error) {
@@ -269,7 +354,6 @@
           });
         }
       } finally {
-        sessionStorage.removeItem(SESSION_KEY);
         await applySession(null);
       }
     });
@@ -303,13 +387,9 @@
 
     cancelEdit.addEventListener('click', resetEditor);
 
-    let initialSession = null;
-    try {
-      initialSession = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-    } catch {
-      sessionStorage.removeItem(SESSION_KEY);
-    }
-    await applySession(initialSession);
+    updateConnection();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+    await applySession(null);
   </script>
 </body>
 </html>

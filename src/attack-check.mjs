@@ -15,6 +15,12 @@ export async function runAttackChecks(config) {
     path: '/api/restore/aabbccdd-1234-4567-89ab-123456789abc',
     expected: 'HTTP 401; recovery requires verified judge B login', kind: 'deny',
   });
+  if (config.step >= 11) checks.push(
+    { attackId: 'pwa_manifest', path: '/manifest.json', expected: 'HTTP 200; vault app manifest', kind: 'manifest' },
+    { attackId: 'device_unapproved', path: '/api/device/status', expected: 'HTTP 200; approved=false; no materials', kind: 'device' },
+    { attackId: 'device_request_unavailable', method: 'POST', path: '/api/device/request',
+      expected: 'HTTP 501; accepted=false; missing engine approval contract', kind: 'request' },
+  );
   for (const check of checks) {
     const response = await fetch(new URL(check.path, base), {
       redirect: 'error', signal: AbortSignal.timeout(15000),
@@ -27,10 +33,16 @@ export async function runAttackChecks(config) {
     else {
       let parsed;
       try { parsed = JSON.parse(body); } catch { /* Report failure without recording body. */ }
-      passed = check.kind === 'data'
-        ? response.status === 200 && Array.isArray(parsed?.notes) && parsed.notes.length === 0
-        : response.status === 401 && typeof parsed?.error === 'string'
-          && Object.keys(parsed).length === 1;
+      if (check.kind === 'data') passed = response.status === 200 && Array.isArray(parsed?.notes) && parsed.notes.length === 0;
+      else if (check.kind === 'manifest') passed = response.status === 200
+        && parsed?.name === 'BYTE BACK 내 자료실' && parsed?.start_url === '/' && parsed?.display === 'standalone';
+      else if (check.kind === 'device') passed = response.status === 200
+        && parsed?.approved === false && parsed?.reason === 'device_not_registered';
+      else if (check.kind === 'request') passed = response.status === 501
+        && parsed?.accepted === false && parsed?.approved === false
+        && parsed?.reason === 'device_approval_contract_unavailable';
+      else passed = response.status === 401 && typeof parsed?.error === 'string'
+        && Object.keys(parsed).length === 1;
     }
     results.push({ attackId: check.attackId, expected: check.expected,
       observed: `Actual ${check.method ?? 'GET'} ${check.path}: HTTP ${response.status}; ${passed ? 'PASS' : 'FAIL'}; non-mutating self-check, not judge verdict` });

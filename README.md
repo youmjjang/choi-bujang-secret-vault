@@ -1,12 +1,12 @@
-# BYTE BACK 방어전 10단계 저장점
+# BYTE BACK 방어전 11단계 저장점
 
 **7단계 해야 할 일 모두 완료. 사용자 직접 확인 결과 모두 통과 (2026-10-13).**
 
-현재 저장소는 **10단계: 백업에서 자료실을 되살립니다**의 비공개 원본 사본과 가상 B 계정 한 건 복구 경로를 추가한 상태입니다. 기존 로그인·메모·공지 API, 첨부 판정기와 탐지기는 유지합니다. 보너스 XDR 코드는 제거돼 있습니다. 실제 심판 B 계정의 HTTP 복구는 심판 확인 전입니다.
+현재 저장소는 **11단계: 나만의 접속 앱을 완성합니다**의 manifest·오프라인 안내·서버 승인 상태 화면을 추가한 상태입니다. 승인 전에는 화면에서 보호 자료를 요청하지 않습니다. 기존 로그인·메모·공지 API, 첨부 판정기·탐지기·10단계 복구 기능을 유지합니다. **제공 엔진의 실제 기기 승인 계약은 연결되지 않아 승인된 기기의 운영 확인은 미실행입니다.**
 
 - 저장소: https://github.com/youmjjang/choi-bujang-secret-vault
 - Production: https://choi-bujang-secret-vault-6trg.vercel.app
-- 단계 설정: `aleph.config.json`의 `step: 10`
+- 단계 설정: `aleph.config.json`의 `step: 11`
 - 원본 자료 API: `https://lktbmcgmnfcundifrvxs.supabase.co/rest/v1/learning_notes`
 
 ## 현재 동작
@@ -146,3 +146,21 @@ src/detect.mjs의 detect(events)는 공식 docs/DETECT_EVENTS.md 계약에 따�
 4. 일반 API 정상 본인 읽기·수정, 타인 읽기·수정 거부, 타인 목록 거부 및 학생 공지 수정 거부를 다시 시험합니다: node --experimental-vm-modules --test test/api-resource-access.test.mjs test/notice-permissions.test.mjs test/note-target.test.mjs.
 5. 기존 가상 기기·복합 이상·재확인 및 조회 폭주를 확인합니다: npm run decider:test → npm run detect:test. 실제 회수·복구 후 탈취 세션 재접속·운영 엔진 정책 재판정은 미실행입니다.
 6. npm run bundle로 공개 페이지·빈 공개 자료·로그인 없는 메모 조회 거부·로그인 없는 복구 거부를 실제 요청으로 기록합니다. 이 자기 점검을 심판 통과로 표시하지 않습니다.
+
+## 11단계: 접속 앱과 기기 승인 화면
+
+- `public/manifest.json`, 앱 아이콘, 오프라인 전용 안내와 service worker를 추가했습니다. 캐시는 공개 오프라인 안내만 저장하고 메모·API 응답·로그인 화면은 저장하지 않습니다. 설치는 기기 승인을 의미하지 않습니다.
+- 로그인 토큰은 현재 페이지의 메모리에만 두며 이전 `byte-back-session` 저장값은 제거합니다. 새로고침하면 다시 로그인합니다. 개인키를 생성하거나 저장하지 않습니다.
+- 승인 요청 버튼은 `POST /api/device/request`, 상태 확인은 `GET /api/device/status`를 호출합니다. 화면은 HTTP 200의 `approved === true`만 승인으로 사용합니다. 버튼 클릭·로그인·설치·요청 접수는 승인 근거가 아닙니다.
+- 승인 전·오프라인·로그아웃에서는 메모 제목·본문·편집 화면을 지우고 보호 API를 요청하지 않습니다. 늦게 도착한 승인 응답도 로그아웃 뒤 화면을 열 수 없습니다.
+- **실제 승인 연결의 정확한 차단점:** 이 저장소와 단계 안내에는 제공 엔진의 등록 요청 API, 서버가 검증할 기기 세션/서명 계약이 없습니다. 상태 API는 승인 전 `approved:false`, 요청 API는 `501`·`accepted:false`·`device_approval_contract_unavailable`을 반환합니다. 접수·승인을 완료했다고 기록하지 않습니다. 가짜 헤더로 승격하거나 별도의 기기 인증 체계를 만들어 엔진 규칙을 대체하지 않습니다.
+- 제공 엔진의 요청 서명 확인은 학생 화면의 책임으로 옮기지 않았습니다. 기존 자료 API의 로그인·소유자·강사 권한 검사와 판정기를 유지했습니다. 운영 서명 없는 요청·경로/본문 변경의 실제 엔진 시험은 미실행입니다.
+- 관련 로컬 시험 19개, `npm run decider:test`의 가상 요청 4개, `npm run detect:test`의 가상 사건 6개와 `npm run build -- --local`이 통과했습니다. 승인된 서버 응답을 넣은 화면 단위시험은 실제 기기 승인 실측이 아닙니다.
+
+다시 실행할 명령:
+
+```sh
+node --experimental-vm-modules --test test/device-approval.test.mjs test/api-resource-access.test.mjs test/notice-permissions.test.mjs test/note-target.test.mjs test/restore.test.mjs test/detect.test.mjs
+```
+
+직접 확인: 자료실에서 로그인한 뒤 승인 전에는 자료가 없어야 합니다. ‘기기 승인 요청’을 누르면 엔진 연결 미완료를 표시하고 자료가 열리지 않아야 합니다. 실제 승인된 기기의 기존 화면 확인은 제공 엔진 계약이 연결된 환경에서 시행해야 하며 현재 배포에서는 미실행입니다. 학생이 직접 최종 제출합니다.
