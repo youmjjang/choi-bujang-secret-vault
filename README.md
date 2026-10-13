@@ -75,7 +75,7 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 `replay-deny-rules.json`과 `xdr/alerts.log`를 만들지만 실제 차단 규칙과 구분합니다.
 과거 시험 경보로 현재 유효한 운영 차단을 생성하지 않습니다. 이 파일들은 Git에서 제외합니다.
 
-**운영 연결은 미완료입니다.** 이 저장소에는 6단계 SDP 판정기와 운영 릴레이가 없습니다.
+**운영 연결은 미완료입니다.** 6단계 SDP 판정기 규칙은 추가되었지만 운영 릴레이는 아직 연결되지 않았습니다.
 공식 SDP 요청 계약에는 출발 IP도 없습니다. 운영에서 검증한 출발 주소를 sidecar에 전달하는
 계약과 허용 reasonCode를 확인해야 실제 ZTNA에 연결할 수 있습니다. 임의 IP 필드나 신뢰할 수 없는
 브라우저 헤더를 만들어 차단하지 않습니다. 5단계 로그인·메모 API와 설정은 보존했습니다.
@@ -96,3 +96,15 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 알림은 로컬 `xdr/alerts.log`, 재생 차단은 해당 모듈의 `replay-deny-rules.json`에 남깁니다.
 운영 차단 연결과 Jev 실호출의 미확인 범위는 위 XDR-01과 같습니다. 정상 요청이 통과하는
 기존 로그인·메모 API를 바꾸지 않았습니다.
+
+## 6단계 등록 기기 판정기 확인 순서 (로컬 연습)
+
+공식 시작 저장소의 `scripts/decider-test.mjs`, `scripts/fixture-7.mjs`를 추가했습니다. `src/decider.mjs`의 `device_registered` 규칙은 `request.deviceRegistered === true`인 자료실 읽기(`GET /notes`, `GET /notes/:id`)만 허용합니다. 미등록 또는 값 누락 시 `deny` / `device_not_registered`를 반환합니다. 다른 요청은 기존 `starter.deny`로 거부합니다.
+
+1. 저장소에서 `src/decider.mjs`와 공식 가상 요청 테스트 두 파일이 있는지 확인합니다.
+2. Node.js 22 이상에서 저장소 루트의 `npm run decider:test`를 실행합니다. 별도 접속 프로그램 설치는 없습니다.
+3. `통과 · 등록 기기의 정상 요청`이 출력되는지 확인합니다 (`allow`).
+4. `통과 · 미등록 기기의 가상 요청`이 출력되는지 확인합니다 (`deny`, 이유 `device_not_registered`).
+5. 이 명령은 가상 요청 연습이며 운영 릴레이와 심판의 미등록 기기 공격 검증을 대신하지 않습니다. 미등록 기기 공격은 심판이 수행합니다.
+
+검증 기록: 판정 코드와 두 가상 요청을 로컬에 재구성하여 `npm run decider:test`를 실행했을 때 두 항목이 통과했습니다. 저장소 전체를 그대로 체크아웃해 공식 스크립트를 실행한 결과는 아직 확인하지 않았습니다. 실제 심판 판정·운영 연결·배포는 미확인입니다.
