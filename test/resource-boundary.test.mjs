@@ -8,7 +8,7 @@ test('my notes route allows verified normal reading without exposing general or 
   const own = { ...normal, subjectId: 'verified_example', classId: 'class_example',
     path: '/api/my/notes', route: 'GET /api/my/notes' };
   assert.equal((await decide(own)).decision, 'allow');
-  for (const change of [{ path: '/api/notes', route: 'GET /api/notes' },
+  for (const change of [{ path: '/api/users/other/notes', route: 'GET /api/notes' },
     { path: '/api/users/other/notes' }, { method: 'PUT' }, { queryLength: 20 },
     { deviceRegistered: false }])
     assert.equal((await decide({ ...own, ...change })).decision, 'deny');
@@ -67,5 +67,16 @@ test('real engine identities can read exact item routes without local fixture id
     assert.equal((await decide({ ...request, deviceRegistered: false })).decision, 'deny');
     assert.equal((await decide({ ...request, path: prefix + '/notes/export' })).decision, 'deny');
     assert.equal((await decide({ ...request, path: prefix + '/notes/a/b' })).decision, 'deny');
+  }
+});
+
+
+test('real owner-scoped API list is allowed but forged path and foreign collections are rejected', () => {
+  const { normal } = fixtureRequests();
+  const own = { ...normal, route: 'GET /api/notes', path: '/api/notes' };
+  assert.equal(decide(own).decision, 'allow');
+  for (const change of [{ path: '/api/users/other/notes' }, { method: 'PUT' },
+    { route: 'GET /api/other/notes' }, { queryLength: 1 }, { deviceRegistered: false }]) {
+    assert.equal(decide({ ...own, ...change }).decision, 'deny');
   }
 });
