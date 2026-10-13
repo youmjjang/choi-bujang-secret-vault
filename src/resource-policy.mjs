@@ -3,6 +3,8 @@ export function createResourcePolicy(bindings) {
   const registry = structuredClone(bindings);
   return request => {
     if (request.service !== 'notes' || request.queryLength !== 0) return false;
+    if (request.method === 'GET' && request.route === 'GET /api/my/notes'
+        && request.path === '/api/my/notes') return true;
     // The engine's v1 envelope has no note owner. As in the official route policy,
     // admit an exact item-read route; the engine and API enforce stored ownership.
     // Do not restrict real engine identities to the local practice fixture.

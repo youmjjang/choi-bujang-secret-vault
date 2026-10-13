@@ -18,7 +18,12 @@ async function invoke(file, { method = 'GET', data, body, userId = 'fixture_a' }
   db.order = db.maybeSingle = async () => ({ data, error: null });
   const context = createContext({ process: { env: { SUPABASE_URL: 'fixture', SUPABASE_SECRET_KEY: 'fixture' } } });
   const module = new SourceTextModule(await readFile(new URL(file, import.meta.url), 'utf8'), { context });
-  await module.link(async specifier => {
+  const link = async specifier => {
+    if (specifier === '../notes.js') {
+      const imported = new SourceTextModule(await readFile(new URL('../api/notes.js', import.meta.url), 'utf8'), { context });
+      await imported.link(link);
+      return imported;
+    }
     const exports = specifier.includes('supabase') ? { createClient: () => db }
       : specifier.includes('verify-login') ? { createLoginVerifier: () => async () => userId ? { userId } : null }
       : specifier.includes('resource-id') ? { resourceId }
@@ -29,7 +34,8 @@ async function invoke(file, { method = 'GET', data, body, userId = 'fixture_a' }
     return new SyntheticModule(Object.keys(exports), function () {
       for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
     }, { context });
-  });
+  };
+  await module.link(link);
   await module.evaluate();
   const response = { headers: {}, setHeader(k, v) { this.headers[k] = v; },
     status(code) { this.code = code; return this; }, json(value) { this.body = value; return this; }, end() { return this; } };
@@ -47,6 +53,17 @@ test('direct item GET returns only the verified owner, not another owner', async
   assert.equal(other.response.code, 404);
   assert.equal(other.response.headers['X-Aleph-Deny-Reason'], 'not_found_or_not_owned');
   assert.equal(other.response.body.title, undefined);
+});
+
+test('my notes alias returns only verified owner rows and rejects foreign rows and writes', async () => {
+  const own = await invoke('../api/my/notes.js', { data: [{ owner_id: 'fixture_a', note_id: 'fixture', title: 'mock', content: 'mock' }] });
+  assert.equal(own.response.code, 200);
+  assert(own.filters.some(([key, value]) => key === 'owner_id' && value === 'fixture_a'));
+  assert.equal((await invoke('../api/my/notes.js', { data: [{ owner_id: 'fixture_b' }] })).response.code, 403);
+  assert.equal((await invoke('../api/my/notes.js', { userId: null })).response.code, 401);
+  const write = await invoke('../api/my/notes.js', { method: 'POST', body: { role: 'teacher' } });
+  assert.equal(write.response.code, 405);
+  assert.equal(write.operations.length, 0);
 });
 
 test('direct list cannot return a foreign row and forged role cannot permit update', async () => {

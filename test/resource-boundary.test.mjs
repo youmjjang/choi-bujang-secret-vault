@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import { decide } from '../src/decider.mjs';
 import { fixtureRequests } from '../scripts/fixture-7.mjs';
 
+test('my notes route allows verified normal reading without exposing general or foreign lists', async () => {
+  const { normal } = fixtureRequests();
+  const own = { ...normal, subjectId: 'verified_example', classId: 'class_example',
+    path: '/api/my/notes', route: 'GET /api/my/notes' };
+  assert.equal((await decide(own)).decision, 'allow');
+  for (const change of [{ path: '/api/notes', route: 'GET /api/notes' },
+    { path: '/api/users/other/notes' }, { method: 'PUT' }, { queryLength: 20 },
+    { deviceRegistered: false }])
+    assert.equal((await decide({ ...own, ...change })).decision, 'deny');
+});
+
 test('method, service, exact path and query cannot disguise another operation', async () => {
   const { normal } = fixtureRequests();
   for (const changed of [
