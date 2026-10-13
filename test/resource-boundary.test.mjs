@@ -3,6 +3,18 @@ import assert from 'node:assert/strict';
 import { decide } from '../src/decider.mjs';
 import { fixtureRequests } from '../scripts/fixture-7.mjs';
 
+test('underscored synthetic note IDs reach the ownership API without opening function paths', () => {
+  const { normal } = fixtureRequests();
+  for (const prefix of ['', '/api']) {
+    const request = { ...normal, path: prefix + '/notes/note-student_a',
+      route: 'GET ' + prefix + '/notes/:id' };
+    assert.equal(decide(request).decision, 'allow');
+    for (const path of [prefix + '/notes/export', prefix + '/notes/a/b', prefix + '/notes/a?role=teacher'])
+      assert.equal(decide({ ...request, path }).decision, 'deny');
+    assert.equal(decide({ ...request, deviceRegistered: false }).decision, 'deny');
+  }
+});
+
 test('my notes route allows verified normal reading without exposing general or foreign lists', async () => {
   const { normal } = fixtureRequests();
   const own = { ...normal, subjectId: 'verified_example', classId: 'class_example',

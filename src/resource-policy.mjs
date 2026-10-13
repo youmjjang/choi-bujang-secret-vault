@@ -16,8 +16,8 @@ export function createResourcePolicy(bindings) {
     // admit an exact item-read route; the engine and API enforce stored ownership.
     // Do not restrict real engine identities to the local practice fixture.
     const readRoutes = {
-      'GET /notes/:id': /^\/notes\/([a-z0-9-]+)$/iu,
-      'GET /api/notes/:id': /^\/api\/notes\/([a-z0-9-]+)$/iu,
+      'GET /notes/:id': /^\/notes\/([a-z0-9_-]+)$/iu,
+      'GET /api/notes/:id': /^\/api\/notes\/([a-z0-9_-]+)$/iu,
     };
     const matcher = Object.hasOwn(readRoutes, request.route) ? readRoutes[request.route] : null;
     // A route-only engine invocation can authorize the read operation, not ownership.
