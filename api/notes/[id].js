@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import config from '../../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from '../../src/verify-login.mjs';
+import { resourceId } from '../../src/resource-id.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -58,6 +59,7 @@ export default async function handler(request, response) {
   }
 
   response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('X-Aleph-Resource-Id', resourceId('notes', rawId));
 
   if (request.method === 'GET') {
     const { data, error } = await supabase
@@ -68,7 +70,10 @@ export default async function handler(request, response) {
       .maybeSingle();
 
     if (error) return response.status(500).json({ error: 'Unable to load note' });
-    if (!data) return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
+    if (!data || data.owner_id !== login.userId) {
+      response.setHeader('X-Aleph-Deny-Reason', 'not_found_or_not_owned');
+      return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
+    }
     return response.status(200).json(noteResponse(data));
   }
 
@@ -89,7 +94,10 @@ export default async function handler(request, response) {
       .maybeSingle();
 
     if (existingError) return response.status(500).json({ error: 'Unable to load note' });
-    if (!existing) return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
+    if (!existing || existing.owner_id !== login.userId) {
+      response.setHeader('X-Aleph-Deny-Reason', 'not_found_or_not_owned');
+      return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
+    }
 
     const { data, error } = await supabase
       .from('learning_notes')
@@ -101,6 +109,7 @@ export default async function handler(request, response) {
 
     if (error) return response.status(500).json({ error: 'Unable to update note' });
     if (!data || data.owner_id !== login.userId) {
+      response.setHeader('X-Aleph-Deny-Reason', 'not_found_or_not_owned');
       return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
     }
     return response.status(200).json(noteResponse(data));
@@ -116,6 +125,7 @@ export default async function handler(request, response) {
 
   if (error) return response.status(500).json({ error: 'Unable to delete note' });
   if (!data || data.owner_id !== login.userId) {
+    response.setHeader('X-Aleph-Deny-Reason', 'not_found_or_not_owned');
     return response.status(404).json({ error: '메모를 찾을 수 없습니다.' });
   }
   return response.status(204).end();

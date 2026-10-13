@@ -1,10 +1,12 @@
-# BYTE BACK 방어전 7단계 저장점
+# BYTE BACK 방어전 8단계 저장점
 
-현재 저장소는 **7단계: 평소와 다른 접속은 다시 확인합니다**의 가상 사건 판정기 구현 상태입니다. 기존 기기 규칙, 5단계 서비스와 보너스 XDR 작업은 유지합니다. 실제 재로그인 자료 차단은 미실행입니다.
+**7단계 해야 할 일 모두 완료. 사용자 직접 확인 결과 모두 통과 (2026-10-13).**
+
+현재 저장소는 **8단계: 자료마다 갈 수 있는 구역을 나눕니다**의 자원 ID·경로 검사·API 소유자 재확인을 구현한 상태입니다. 기존 기기·이상 접속 규칙, 로그인·메모 기능, 보너스 XDR 작업은 유지합니다. 7단계는 사용자 직접 확인 결과 모두 통과했습니다. 8단계의 판정기 소유자 대응 계약과 저장된 강사 권한 연결은 아직 없습니다.
 
 - 저장소: https://github.com/youmjjang/choi-bujang-secret-vault
 - Production: https://choi-bujang-secret-vault-6trg.vercel.app
-- 단계 설정: `aleph.config.json`의 `step: 7`
+- 단계 설정: `aleph.config.json`의 `step: 8`
 - 원본 자료 API: `https://lktbmcgmnfcundifrvxs.supabase.co/rest/v1/learning_notes`
 
 ## 현재 동작
@@ -123,7 +125,7 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 
 ## 7단계 저장점: 가상 사건과 재로그인 계약 확인
 
-현재 단계 설정은 7단계입니다. 마지막으로 확인한 공개 배포는 6단계 커밋 `bfe1effa4ca2`이며, 이번 저장점에서 원격 푸시·7단계 배포·심판 제출은 하지 않습니다.
+7단계 저장점 당시 단계 설정은 7단계였습니다. 「7단계 저장점」 커밋 `2ac14f9449f9`를 GitHub `main`에 푸시했고, 공개 배포의 `/aleph.json`에서도 `step: 7`과 동일 커밋을 확인했습니다. 7단계 코드·빌드·가상 사건 테스트·제출 묶음 생성·배포 반영까지 완료했습니다. 이후 사용자가 7단계 해야 할 일을 직접 확인했고 모두 통과했다고 보고했습니다. 제출은 학생이 직접 수행합니다.
 입력 검사에서 `judge_fixture` 가상 사건과 `none` 정보 없음을 구분하고, 클라이언트 헤더를
 신뢰 정보로 승격하지 않습니다. 누락된 접속 정보에 정상값을 만들어 넣지 않습니다.
 기존 기기 규칙을 유지하며 가상 사건의 0~5시·`unusual` 네트워크·최근 300초 내
@@ -131,17 +133,30 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 수치는 로컬 연습 정책이며 지역 하나만으로 차단하지 않습니다.
 
 확보한 공식 `docs/DECIDER_REQUEST.md` 계약은 `{verified, authAgeSeconds}`를 설명하지만
-이 값만으로 재인증 확인 요청을 건너뛰지 말라고 명시합니다. 현재 자료실에는 같은 주체의
-새 로그인 시각을 제공 엔진이 검증하고 새 요청을 재판정하는 운영 연결이 확인되지 않았습니다.
+이 값만으로 재인증 확인 요청을 건너뛰지 말라고 명시합니다. 코드 작업 당시에는 같은 주체의
+새 로그인 시각 검증과 재판정의 운영 연결을 확인하지 못했습니다. 이후 사용자 직접 확인에서
+7단계 항목이 모두 통과했다고 보고되어 완료 상태로 갱신했습니다.
 토큰 발급 시각을 새 로그인 증거로 간주하거나 클라이언트의 성공 표시를 신뢰하지 않습니다.
 
 확인 명령: `npm run fixture:7`, `npm run decider:test`,
 `node --test test/connection-input.test.mjs test/step-up.test.mjs`.
 가상 사건에서 확인 전 `step_up`, 확인 결과를 모의 입력한 새 요청에서 `allow`를 시험합니다.
-이는 실제 로그인·자료 API 차단의 실측이 아닙니다. **실제 자료 차단 및 새 로그인 후 허용은 미실행**입니다.
-운영 계약과 연결이 준비된 환경에서만 실측합니다. 토큰 원문은 기록하지 않습니다.
+이 명령들의 결과는 가상 사건 시험입니다. 실제 화면 확인은 사용자가 수행했고,
+7단계 확인 항목 모두 통과했다고 보고했습니다 (2026-10-13). 토큰 원문은 기록하지 않습니다.
 
 저장점 확인: 가상 사건은 정상 `allow`, 복합 이상 `step_up`, 재확인 모의 새 요청 `allow`입니다.
 입력·규칙 테스트 5개와 `decider:test` 4개가 통과했습니다. 빌드와 배포 식별 검증은 7단계를 지원합니다.
 다시 실행: `npm run fixture:7` → `npm run decider:test` → `npm run build -- --local` → `npm run bundle`.
 묶음의 HTTP 자기 점검은 현재 공개된 자료실의 응답만 기록하며 7단계 실측 증거가 아닙니다.
+
+## 8단계 저장점
+
+메모는 notes:collection 및 notes:<기존 UUID>, 공지는 notices:collection으로 서버 응답 헤더에서 구분합니다. 기존 URL·자료·화면 메뉴는 유지합니다. 공지 원본이 없어 GET /api/notices는 로그인 후 빈 목록을 반환합니다.
+
+판정기는 메서드·서비스·정확한 경로를 대조하고 export 등 기능 경로와 검증할 수 없는 쿼리를 거부합니다. 기기 및 step_up 규칙은 유지합니다. subjectId와 소유자의 검증된 대응 계약이 없어 판정기의 메모 수정은 거부합니다. 자기 메모 수정 허용과 강사 권한 허용은 미구현입니다.
+
+자료 API는 검증한 사용자와 저장된 owner_id를 쿼리 및 반환 행에서 재확인합니다. 요청 본문의 role을 권한으로 인정하지 않습니다. 공지 수정은 저장된 강사 권한 정보가 없어 모두 거부합니다. 거부 사유는 X-Aleph-Deny-Reason 헤더에 남깁니다.
+
+다시 실행: node --experimental-vm-modules --test test/api-resource-access.test.mjs test/resource-boundary.test.mjs test/resource-id.test.mjs test/connection-input.test.mjs test/step-up.test.mjs → npm run decider:test → npm run build -- --local → npm run bundle.
+
+API 검증은 모의 DB·검증된 모의 사용자에 대한 격리 테스트입니다. 실제 A/B 계정의 8단계 직접 요청은 미실행입니다. 마지막 확인 공개 배포는 7단계이며 이번 저장점은 원격 푸시·8단계 배포·심판 제출 전입니다. 묶음의 HTTP 점검은 기존 공개 사이트 응답만 확인합니다.

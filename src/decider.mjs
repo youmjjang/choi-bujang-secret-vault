@@ -1,6 +1,6 @@
 // 운영 엔진이 확인한 요청 계약(aleph.decision.v1)만 사용합니다.
 // 6단계: 등록 기기의 자료실 읽기만 허용합니다.
-export const RULE_IDS = Object.freeze(['starter.deny', 'device_registered', 'step_up_required']);
+export const RULE_IDS = Object.freeze(['starter.deny', 'device_registered', 'step_up_required', 'resource_boundary']);
 
 // Only call with the engine's validated decision envelope, never an HTTP body.
 // A source label is not authentication. Headers cannot supply or override signals.
@@ -49,7 +49,23 @@ export async function decide(request) {
     return response('deny', 'starter_not_ready', 'starter.deny');
   }
 
-  if (request.route === 'GET /notes' || request.route === 'GET /notes/:id') {
+  // The v1 contract has no verified owner mapping or instructor grant.
+  // Never infer either from subjectId, a client role, query, or response header.
+  const collectionRead = request.service === 'notes' && request.method === 'GET'
+    && request.route === 'GET /notes' && request.path === '/notes';
+  const fixtureDemo = connection.kind === 'judge_fixture' && request.path === '/notes/demo';
+  const exactNotePath = typeof request.path === 'string'
+    && /^\/notes\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(request.path);
+  const itemRead = request.service === 'notes' && request.method === 'GET'
+    && request.route === 'GET /notes/:id' && (exactNotePath || fixtureDemo);
+  // Raw query is not exposed by the contract: do not guess which function it selects.
+  if ((!collectionRead && !itemRead) || request.queryLength !== 0
+      || typeof request.subjectId !== 'string' || !request.subjectId.trim()
+      || !/^[0-9a-f]{16}$/u.test(request.deviceId ?? '')) {
+    return response('deny', 'starter_not_ready', 'resource_boundary');
+  }
+
+  if (collectionRead || itemRead) {
     // Local fixture policy: midnight–05:59, unusual network, 20+ events in 5 minutes.
     // Region alone is never a reason to deny or demand another login.
     const combinedRisk = connection.kind === 'judge_fixture'

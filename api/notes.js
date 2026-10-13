@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createLoginVerifier } from '../src/verify-login.mjs';
+import { resourceId } from '../src/resource-id.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -35,6 +36,7 @@ function hasOwnerField(payload) {
 }
 
 export default async function handler(request, response) {
+  response.setHeader('X-Aleph-Resource-Id', resourceId('notes'));
   if (!['GET', 'POST'].includes(request.method)) {
     response.setHeader('Allow', 'GET, POST');
     return response.status(405).json({ error: 'Method not allowed' });
@@ -54,7 +56,7 @@ export default async function handler(request, response) {
   if (request.method === 'GET') {
     const { data, error } = await supabase
       .from('learning_notes')
-      .select('note_id, title, content')
+      .select('note_id, title, content, owner_id')
       .eq('owner_id', login.userId)
       .order('created_at', { ascending: true });
 
@@ -62,7 +64,11 @@ export default async function handler(request, response) {
       return response.status(500).json({ error: 'Unable to load notes' });
     }
 
-    return response.status(200).json((data ?? []).map(note => ({
+    if (!Array.isArray(data) || data.some(note => note.owner_id !== login.userId)) {
+      response.setHeader('X-Aleph-Deny-Reason', 'owner_mismatch');
+      return response.status(403).json({ error: '자료 접근 권한이 없습니다.' });
+    }
+    return response.status(200).json(data.map(note => ({
       id: note.note_id,
       title: note.title,
       body: note.content,
