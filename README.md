@@ -2,7 +2,7 @@
 
 **7단계 해야 할 일 모두 완료. 사용자 직접 확인 결과 모두 통과 (2026-10-13).**
 
-현재 저장소는 **8단계: 자료마다 갈 수 있는 구역을 나눕니다**의 자원 ID·경로 검사·API 소유자 재확인을 구현한 상태입니다. 기존 기기·이상 접속 규칙, 로그인·메모 기능, 보너스 XDR 작업은 유지합니다. 7단계는 사용자 직접 확인 결과 모두 통과했습니다. 8단계의 판정기 소유자 대응 계약과 저장된 강사 권한 연결은 아직 없습니다.
+현재 저장소는 **8단계: 자료마다 갈 수 있는 구역을 나눕니다**의 자원 ID·경로 검사·API 소유자 재확인을 구현한 상태입니다. 기존 기기·이상 접속 규칙, 로그인·메모 기능, 보너스 XDR 작업은 저장소에서 제거했습니다. 7단계는 사용자 직접 확인 결과 모두 통과했습니다. 8단계의 판정기 소유자 대응 계약과 저장된 강사 권한 연결은 아직 없습니다.
 
 - 저장소: https://github.com/youmjjang/choi-bujang-secret-vault
 - Production: https://choi-bujang-secret-vault-6trg.vercel.app
@@ -57,48 +57,6 @@ Production에서는 Vercel의 서버 전용 환경변수를 유지한 채 GitHub
 
 비밀번호, JWT, 서버 전용 키, 실제 개인정보와 실제 메모 본문은 코드·로그·README·Git 커밋에 넣지 않습니다.
 
-## 보너스 XDR-01 제작 상태
-
-공식 시작 저장소의 Wazuh 형식 시험 경보와 실행기를 가져왔습니다. 원본 경보는 변경하지 않았습니다.
-`read-alerts.mjs`는 경보당 시각·출발 주소·계정·수준·설명 다섯 항목을 읽으며 비밀값을 제거합니다.
-`patterns.json`은 MITRE ATT&CK T1110.001/T1110.003 근거를 기록합니다. 수치 임계값은 수업용 로컬 정책입니다.
-명확한 반복 실패/비밀번호 분사는 규칙으로 판단하고, 애매한 실패만 Jev로 보냅니다.
-확신도 0.85 이상 block, 0.5 이상 alert, 그 아래 record이며 Jev 장애·키 미설정은 alert입니다.
-
-실행: `npm run xdr:run -- brute-force` → `xdr/brute-force/result.json`.
-추가 검증: `npm run xdr:check`, `npm run test:xdr`.
-Jev의 공식 API는 https://api.typesafe.ai/v1/systemone 입니다.
-https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` 비밀 환경변수로 설정합니다.
-키를 채팅·Git·브라우저 코드에 넣지 않습니다. Jev에는 원본 IP·계정·비밀번호 대신 실패 건수 등 파생 지표만 보냅니다.
-현재 실제 Jev 호출은 미실행이며 키 없는 fallback과 모의 API 응답만 검증했습니다.
-
-`enforce.mjs`는 기존 판정 함수를 유지하는 sidecar 연결과 15분 임시 거부 규칙을 제공합니다.
-각 규칙에 근거 경보 번호·생성 시각·만료 시각을 기록합니다. `xdr:check`는 시험 시각에 재생하며
-`replay-deny-rules.json`과 `xdr/alerts.log`를 만들지만 실제 차단 규칙과 구분합니다.
-과거 시험 경보로 현재 유효한 운영 차단을 생성하지 않습니다. 이 파일들은 Git에서 제외합니다.
-
-**운영 연결은 미완료입니다.** 6단계 SDP 판정기 규칙은 추가되었지만 운영 릴레이는 아직 연결되지 않았습니다.
-공식 SDP 요청 계약에는 출발 IP도 없습니다. 운영에서 검증한 출발 주소를 sidecar에 전달하는
-계약과 허용 reasonCode를 확인해야 실제 ZTNA에 연결할 수 있습니다. 임의 IP 필드나 신뢰할 수 없는
-브라우저 헤더를 만들어 차단하지 않습니다. 5단계 로그인·메모 API와 설정은 보존했습니다.
-로컬 재생 결과나 모의 연동 검증을 심판 통과·운영 방어 완료로 표현하지 않습니다.
-
-## 보너스 XDR-02 저장점
-
-`xdr/web-injection/`은 웹 입력 조작 경보를 처리합니다. SQL 구문 결합, 스크립트 삽입,
-경로 이탈, 명령 구분자 근거와 반복 건수를 함께 봅니다. 고수준 경보(10 이상)·5회 이상
-반복·명확한 주입 근거가 모두 있을 때만 규칙 기반 차단 후보가 됩니다. MITRE T1190에
-근거를 기록하되 수치 임계값은 로컬 정책으로 구분했습니다. 단독 수업 단어나 따옴표는
-차단 근거가 아닙니다. 애매한 경보만 Jev에 파생 지표로 질문하고 실패하면 alert로 유지합니다.
-
-실행: `npm run xdr:run -- web-injection`.
-재생·차단 만료·정상 통과 확인: `npm run xdr:check:web`.
-검증: `npm run test:xdr` 및 `node --experimental-vm-modules scripts/check-isolated-decider.mjs web-injection`.
-판단 모듈은 Node 내장 모듈·npm 패키지를 import하지 않으며 경보 읽기는 별도 파일입니다.
-알림은 로컬 `xdr/alerts.log`, 재생 차단은 해당 모듈의 `replay-deny-rules.json`에 남깁니다.
-운영 차단 연결과 Jev 실호출의 미확인 범위는 위 XDR-01과 같습니다. 정상 요청이 통과하는
-기존 로그인·메모 API를 바꾸지 않았습니다.
-
 ## 6단계 등록 기기 판정기 확인 순서 (로컬 연습)
 
 공식 시작 저장소의 `scripts/decider-test.mjs`, `scripts/fixture-7.mjs`를 추가했습니다. `src/decider.mjs`의 `device_registered` 규칙은 `request.deviceRegistered === true`인 자료실 읽기(`GET /notes`, `GET /notes/:id`)만 허용합니다. 미등록 또는 값 누락 시 `deny` / `device_not_registered`를 반환합니다. 다른 요청은 기존 `starter.deny`로 거부합니다.
@@ -151,20 +109,12 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 
 ## 8단계 저장점
 
-첨부 원문으로 실제 교체: 학생이 제공한 판정기 파일을 src/decider.mjs로 복사한 뒤 연결 부분을 조정했습니다. 기존 판정기의 checkZoneAccess로 되돌리지 않았습니다. 제공 코드의 isOwnMemo를 가상 judge_fixture에 사용하며, 부분 접미 일치와 공지 키워드 우회는 제거했습니다. 실제 opaque UUID 요청은 메모 API가 owner_id로 검사합니다. 가상 A 자기 메모 읽기·수정은 허용하고 B의 A 메모 및 학생의 공지 수정은 거부합니다. 기존 본인 목록 API·메모 DB·강사 권한 DB·7단계 수치는 보존했습니다. 이름 비교는 실제 소유권의 증거가 아니며 가상 사건에만 적용합니다. 운영 심판의 새 결과는 아직 없습니다.
+사용자 요청에 따라 마지막 첨부 파일을 src/decider.mjs로 그대로 복사했습니다. 파일 해시가 원문과 동일합니다. 함수, 구역 규칙, 수치와 비동기 반환도 원문 그대로이며, 이전 구역 정책을 대신 연결하지 않았습니다.
 
-정상 읽기 경로 형식 수정: 첨부 예제의 note-student_a처럼 밑줄이 포함된 가상 ID는 기존 읽기 정규식에서 거부됐습니다. 이 입력의 deny를 재현한 뒤 GET 단건 경로의 ID 문법에 밑줄을 추가했습니다. 소유자 판정은 ID 이름으로 추정하지 않으며 최종 API 검사는 유지합니다. 강사 권한은 제거하지 않았습니다. 심판이 실제 사용한 ID는 공개되지 않아 이 수정의 공식 통과 여부는 재판정 전 미확인입니다.
+보너스 전용 xdr 디렉터리, 실행·점검 스크립트 4개, 보너스 테스트 2개 및 npm의 보너스 실행 명령을 저장소에서 제거했습니다. 로컬 복구 사본과 Git 이력은 보존합니다. 일반 자료실 API와 메모·공지 DB는 변경하지 않았습니다.
 
-첨부 판정기 적용: 제공한 코드의 기기 검사 → 구역 검사 → 검증된 신호 → 최종 판정 구조로 src/decider.mjs를 정리했습니다. 실제 공개 export function decide(request)를 유지합니다. ID 접두어 제거·부분 문자열·공지 키워드로 권한을 추정하는 분기는 옮기지 않았습니다. 본인 목록 경로는 기존 소유자 검사 API로 연결하며 정확한 서버 권한 목록 검사를 재사용합니다. 7단계 수치·응답 다섯 필드·기기 규칙과 실제 메모 API를 유지합니다. 이 변경만으로 공식 심판 통과를 주장하지 않습니다.
+실제 실행: npm run decider:test의 가상 요청 4개가 통과했습니다. 전체 기존 테스트 통과를 주장하지 않습니다. 원문에 readConnectionInput 및 createDecider export가 없으므로 이전 판정기 내부 함수에 의존한 테스트는 이 판정기와 호환되지 않습니다.
 
-현재 구현: 메모와 공지는 notes:<UUID>, notices:<UUID> 및 서로 다른 collection 자원 ID를 응답 헤더에 표시합니다. 기존 메모 자료·주소·화면은 유지합니다. 공지는 instructor_notices에서 조회합니다.
+현재 판정기는 첨부 원문의 ID 이름 비교 및 단건 경로 정책을 사용합니다. 이 코드의 공식 8단계 통과는 미확인입니다. 본인 목록 경로를 거부할 수 있고 가명 주체와 실제 소유자의 검증된 대응을 구현한 것은 아닙니다.
 
-판정기는 등록 기기와 정확한 메서드·경로를 검사합니다. 현재 자료실의 GET /api/notes는 API에서 본인 소유자로 필터링하는 목록이므로 허용합니다. GET /api/my/notes 및 개별 메모 읽기도 자료 API의 소유자 검사로 연결합니다. 알 수 없는 경로·기능 쿼리·위조 경로는 거부합니다. 명시적인 서버 권한 목록이 주어진 경우 본인 메모 PUT 및 강사 공지 PUT을 반·프로젝트·주체·정확한 경로·동작으로 대조하며 타인·학생의 수정은 거부합니다. 운영 엔진 subjectId와 실제 소유자의 권한 목록 연결은 제공되지 않아 실제 수정 허용 연결은 미완료입니다. 입력에 없는 신원·역할·정상 접속 정보는 만들어 넣지 않습니다. 기존 기기·추가 인증 규칙은 유지합니다.
-
-최종 자료 API는 검증된 사용자와 learning_notes.owner_id를 DB 쿼리 및 반환 행에서 재확인합니다. 공지 수정은 instructor_permissions의 user_id·active·can_edit_notices와 검증된 로그인 사용자를 비교합니다. 화면 메뉴와 본문의 role은 권한으로 사용하지 않습니다. 거부 사유는 X-Aleph-Deny-Reason에 남깁니다. 현재 저장된 강사 권한 및 공지는 0건이며 실제 강사 수정 성공은 미실행입니다.
-
-검증: node --experimental-vm-modules --test test/*.test.mjs 실행 결과 41개 통과. 정상 읽기와 본인 수정, 타인 자료 거부, 학생 공지 수정 거부, 위조 경로 거부 및 이전 기능을 격리 시험했습니다. 실제 사용자 화면에서는 본인 메모 수정 200, 다른 계정의 같은 메모 조회 404가 확인됐습니다.
-
-마지막 실제 ALEPH 판정은 9f62b73a42de의 S08_OWN_BROKEN입니다. 이후 다른 작업자가 추가한 본인 목록 허용 변경을 보존해 반영했습니다. 이번 저장점의 공식 심판 재판정은 미실행입니다. 로컬 시험은 심판 통과 증거가 아닙니다.
-
-다시 실행: npm run decider:test → npm run build -- --local → npm run bundle. bundle의 HTTP 자기 점검은 공개 자료실에 실제 보낸 요청만 기록합니다. bundle-notes.json과 artifacts/submission.json은 커밋하지 않습니다.
+자료 API는 기존 검증된 로그인 사용자 및 owner_id 비교와 저장된 강사 권한 검사를 유지합니다. bundle의 HTTP 자기 점검은 공개 자료실의 실제 응답만 기록하며 심판 통과 증거가 아닙니다. bundle-notes.json과 artifacts/submission.json은 커밋하지 않습니다.

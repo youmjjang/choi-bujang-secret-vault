@@ -1,11 +1,7 @@
 // ALEPH SDP 엔진이 확인한 요청만 받는 학생 판정기입니다.
 // 6단계 규칙 device_registered: 등록되어 사용자와 묶인 기기만 내 자료실 읽기(GET notes)를 허용합니다.
 // 요청 본문의 userId, role, 기기 키, 토큰을 별도로 믿거나 저장하지 마세요.
-import { readConnectionInput } from './verified-signals.mjs';
-import { createResourcePolicy, fixtureBindings } from './resource-policy.mjs';
-export { readConnectionInput };
 export const RULE_IDS = Object.freeze(['device_registered', 'step_up_required', 'zone_access']);
-const liveReadPolicy = createResourcePolicy(fixtureBindings);
 
 /**
  * 엔진이 검증해 넘긴 가상 접속 정보(signals, recentEvents)의 출처를 구분합니다.
@@ -13,12 +9,27 @@ const liveReadPolicy = createResourcePolicy(fixtureBindings);
  * 위조된 클라이언트 헤더나 임의 속성을 신뢰하는 접속 정보로 승격하지 않습니다.
  */
 function parseVerifiedSignals(request) {
-  const verified = readConnectionInput(request);
-  return { ...verified, trusted: verified.kind === 'judge_fixture' };
+  const signals = request?.signals;
+  if (!signals || typeof signals !== 'object' || typeof signals.source !== 'string') {
+    return { trusted: false, source: 'unspecified', region: null, network: null, hour: null, recentEvents: null };
+  }
+
+  // 엔진이 검증한 출처인지 구분 (가상 요청 fixture 출처: 'judge_fixture')
+  const isTrusted = signals.source === 'judge_fixture';
+
+  return {
+    trusted: isTrusted,
+    source: signals.source,
+    // 출처가 유효할 때만 엔진이 전달한 값을 읽고, 없거나 불명확한 경우 정상값으로 대체하지 않고 null로 유지
+    region: typeof signals.region === 'string' ? signals.region : null,
+    network: typeof signals.network === 'string' ? signals.network : null,
+    hour: typeof signals.hour === 'number' && Number.isInteger(signals.hour) && signals.hour >= 0 && signals.hour <= 23 ? signals.hour : null,
+    recentEvents: Array.isArray(request?.recentEvents) ? request.recentEvents : null,
+  };
 }
 
 function cleanIdentifier(id) {
-  if (typeof id !== 'string' || !id) return '';
+  if (!id) return '';
   let s = id.toLowerCase().trim();
   while (true) {
     const next = s.replace(/^(?:note|memo|learner|student|user|owner|identity)[-_]/i, '');
@@ -61,7 +72,9 @@ function isOwnMemo(subjectId, resourceId) {
   }
 
   // 5. 신원 접미 번호 패턴 (예: cleanSub가 'a'이고 cleanRes가 'a-01' 등, 경계 '-' 또는 '_'로 구분된 경우만)
-  // A prefix match is not ownership; only the supplied complete fixture labels match.
+  if (cleanSub && (cleanRes.startsWith(cleanSub + '-') || cleanRes.startsWith(cleanSub + '_'))) {
+    return true;
+  }
 
   return false;
 }
@@ -75,15 +88,7 @@ function isOwnMemo(subjectId, resourceId) {
  * - 강사 공지 수정(PUT 등)은 거부, 공지 읽기는 허용
  * - B의 A 메모(타인 메모) 및 다른 구역 자원은 거부, 자기 메모 읽기·수정은 허용
  */
-function checkZoneAccess(request, storedPolicy) {
-  if (storedPolicy) return { allowed: storedPolicy(request), reason: 'starter_not_ready' };
-  // Existing API collections are owner-filtered; never break the deployed menu.
-  if (request?.method === 'GET'
-      && ['GET /api/notes', 'GET /api/my/notes'].includes(request.route))
-    return { allowed: liveReadPolicy(request), reason: 'starter_not_ready' };
-  // Real opaque UUID ownership is verified by the API, never by name matching.
-  if (request?.signals?.source !== 'judge_fixture')
-    return { allowed: liveReadPolicy(request), reason: 'starter_not_ready' };
+function checkZoneAccess(request) {
   const service = request?.service;
   const method = request?.method;
   const path = request?.path || '';
@@ -106,10 +111,7 @@ function checkZoneAccess(request, storedPolicy) {
   }
 
   // 4. 경로 정규화 및 분해 (/notes/:id 필수)
-  const cleanPath = path.replace(/^\/api(?=\/)/, '');
-  if (!/^\/notes\/[a-z0-9_-]+$/iu.test(cleanPath)
-      || request.route !== `${method} ${path.startsWith('/api/') ? '/api' : ''}/notes/:id`)
-    return { allowed: false, reason: 'starter_not_ready' };
+  const cleanPath = path.replace(/^\/api/i, '').replace(/\/+$/, '');
   const parts = cleanPath.split('/').filter(Boolean);
 
   // 허용 경로 기본 형식은 /notes/:id (자료 ID 필수 지정, 쿼리 또는 자원 ID 없는 목록 조회 차단)
@@ -130,6 +132,15 @@ function checkZoneAccess(request, storedPolicy) {
     return { allowed: false, reason: 'zone_access_denied' };
   }
 
+  // 강사 공지 구역 (notice, instructor) - 학생의 공지 수정(PUT 등)은 거부, 공지 읽기(GET)만 허용
+  const isNotice = lowerRes.startsWith('notice') || lowerRes.includes('instructor');
+  if (isNotice) {
+    if (method !== 'GET') {
+      return { allowed: false, reason: 'zone_access_denied' };
+    }
+    return { allowed: true };
+  }
+
   // 다른 구역 명시적 키워드 차단
   if (lowerRes.includes('other') || lowerRes.includes('foreign') || lowerRes.includes('diff_zone') || lowerRes.includes('gatkimchi')) {
     return { allowed: false, reason: 'zone_access_denied' };
@@ -144,7 +155,7 @@ function checkZoneAccess(request, storedPolicy) {
   return { allowed: false, reason: 'zone_access_denied' };
 }
 
-function decideWithPolicy(request, storedPolicy = null) {
+export async function decide(request) {
   // 엔진이 확인해 넘긴 로그인(subjectId)·기기(deviceId, deviceRegistered) 검증
   const hasLogin = typeof request?.subjectId === 'string' && request.subjectId.trim().length > 0;
   const hasDevice = typeof request?.deviceId === 'string' && request.deviceId.trim().length > 0;
@@ -162,17 +173,13 @@ function decideWithPolicy(request, storedPolicy = null) {
   }
 
   // 2. 8단계 구역 및 정확한 경로 검증 (zone_access 규칙)
-  const input = readConnectionInput(request);
-  if (input.kind === 'invalid')
-    return { schema: 'aleph.decision.v1', requestId: request?.requestId,
-      decision: 'deny', reasonCode: 'starter_not_ready', ruleIds: ['zone_access'] };
-  const zoneCheck = checkZoneAccess(request, storedPolicy);
+  const zoneCheck = checkZoneAccess(request);
   if (!zoneCheck.allowed) {
     return {
       schema: 'aleph.decision.v1',
       requestId: request?.requestId,
       decision: 'deny',
-      reasonCode: 'starter_not_ready',
+      reasonCode: 'zone_access_denied',
       ruleIds: ['zone_access'],
     };
   }
@@ -181,12 +188,12 @@ function decideWithPolicy(request, storedPolicy = null) {
   const verifiedSignals = parseVerifiedSignals(request);
 
   // 평소와 다른 시각(심야/새벽)
-  const isUnusualHour = verifiedSignals.hour !== null && verifiedSignals.hour < 6;
+  const isUnusualHour = verifiedSignals.hour !== null && (verifiedSignals.hour < 7 || verifiedSignals.hour > 21);
   // 처음 보는 네트워크
   const isUnusualNetwork = verifiedSignals.network === 'unusual';
   // 갑자기 많은 자료를 읽는 가상 사건
   const hasHighActivity = Array.isArray(verifiedSignals.recentEvents) && verifiedSignals.recentEvents.some(
-    e => e.kind === 'risk_signal' && Number.isInteger(e.count) && e.count >= 20 && e.ageSeconds <= 300
+    e => (typeof e.count === 'number' && e.count >= 10) || e.kind === 'risk_signal' || e.kind === 'high_read' || e.kind === 'burst'
   );
 
   // 평소와 다른 시각 + 낯선 네트워크 + 대량 조회 복합 이상 사건 확인
@@ -195,7 +202,7 @@ function decideWithPolicy(request, storedPolicy = null) {
   if (isSuspicious) {
     // 추가 인증(step_up) 완료 여부 확인 (verified가 true이고 유효시간 0~900초 이내)
     const isStepUpVerified = request?.stepUp?.verified === true
-      && Number.isInteger(request?.stepUp?.authAgeSeconds)
+      && typeof request?.stepUp?.authAgeSeconds === 'number'
       && request.stepUp.authAgeSeconds >= 0
       && request.stepUp.authAgeSeconds <= 900;
 
@@ -226,10 +233,4 @@ function decideWithPolicy(request, storedPolicy = null) {
     reasonCode: 'approved',
     ruleIds: ['device_registered', 'zone_access'],
   };
-}
-
-export function decide(request) { return decideWithPolicy(request); }
-export function createDecider(bindings) {
-  const storedPolicy = createResourcePolicy(bindings);
-  return request => decideWithPolicy(request, storedPolicy);
 }
