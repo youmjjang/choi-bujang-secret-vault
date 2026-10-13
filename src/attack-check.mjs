@@ -21,6 +21,8 @@ export async function runAttackChecks(config) {
     { attackId: 'device_request_unavailable', method: 'POST', path: '/api/device/request',
       expected: 'HTTP 501; accepted=false; missing engine approval contract', kind: 'request' },
   );
+  if (config.step >= 12) checks.push({ attackId: 'operations_actual_records', path: '/api/checks',
+    expected: 'HTTP 200; measured self-checks with timestamps; engine receipts separate', kind: 'operations' });
   for (const check of checks) {
     const response = await fetch(new URL(check.path, base), {
       redirect: 'error', signal: AbortSignal.timeout(15000),
@@ -41,6 +43,12 @@ export async function runAttackChecks(config) {
       else if (check.kind === 'request') passed = response.status === 501
         && parsed?.accepted === false && parsed?.approved === false
         && parsed?.reason === 'device_approval_contract_unavailable';
+      else if (check.kind === 'operations') passed = response.status === 200
+        && parsed?.schema === 'aleph.operations.v1' && parsed?.step === 12
+        && parsed?.summary?.mismatch === 0 && parsed?.summary?.liveExecuted > 0
+        && Array.isArray(parsed?.cases) && parsed.cases.some(row => row.type === 'normal' && row.result === 'matched')
+        && parsed.cases.some(row => row.type === 'forbidden' && row.result === 'matched')
+        && parsed?.assault?.total === 41 && parsed?.assault?.notRun === 41;
       else passed = response.status === 401 && typeof parsed?.error === 'string'
         && Object.keys(parsed).length === 1;
     }
