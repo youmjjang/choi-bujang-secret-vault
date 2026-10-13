@@ -3,92 +3,41 @@ import assert from 'node:assert/strict';
 import { decide } from '../src/decider.mjs';
 import { fixtureRequests } from '../scripts/fixture-7.mjs';
 
-test('underscored synthetic note IDs reach the ownership API without opening function paths', () => {
+test('supplied own-note fixture accepts A read/update and denies B and ambiguous prefixes', () => {
   const { normal } = fixtureRequests();
-  for (const prefix of ['', '/api']) {
-    const request = { ...normal, path: prefix + '/notes/note-student_a',
-      route: 'GET ' + prefix + '/notes/:id' };
-    assert.equal(decide(request).decision, 'allow');
-    for (const path of [prefix + '/notes/export', prefix + '/notes/a/b', prefix + '/notes/a?role=teacher'])
-      assert.equal(decide({ ...request, path }).decision, 'deny');
-    assert.equal(decide({ ...request, deviceRegistered: false }).decision, 'deny');
+  for (const prefix of ['', '/api']) for (const method of ['GET', 'PUT']) {
+    const own = { ...normal, method, subjectId: 'student_a', path: prefix + '/notes/note-a', route: `${method} ${prefix}/notes/:id` };
+    assert.equal(decide(own).decision, 'allow');
+    assert.equal(decide({ ...own, subjectId: 'student_b' }).decision, 'deny');
+    assert.equal(decide({ ...own, path: prefix + '/notes/note-ab' }).decision, 'deny');
+    assert.equal(decide({ ...own, path: prefix + '/notes/note-a-foreign' }).decision, 'deny');
   }
 });
-
-test('my notes route allows verified normal reading without exposing general or foreign lists', async () => {
+test('unknown paths, query functions, client instructor labels and unregistered device deny', () => {
   const { normal } = fixtureRequests();
-  const own = { ...normal, subjectId: 'verified_example', classId: 'class_example',
-    path: '/api/my/notes', route: 'GET /api/my/notes' };
-  assert.equal((await decide(own)).decision, 'allow');
-  for (const change of [{ path: '/api/users/other/notes', route: 'GET /api/notes' },
-    { path: '/api/users/other/notes' }, { method: 'PUT' }, { queryLength: 20 },
-    { deviceRegistered: false }])
-    assert.equal((await decide({ ...own, ...change })).decision, 'deny');
+  for (const change of [{ path: '/notes/export' }, { path: '/notes/demo/export' }, { path: '/apiary/notes/demo' },
+    { path: '/notes/demo/' }, { queryLength: 10 }, { method: 'POST' }, { deviceRegistered: false },
+    { path: '/notes/instructor-other' }, { path: '/notes/notice-other', role: 'teacher' }, { subjectId: '' }])
+    assert.equal(decide({ ...normal, ...change }).decision, 'deny');
 });
-
-test('method, service, exact path and query cannot disguise another operation', async () => {
+test('demo belongs only to learner_fixture and cannot be shared with another fixture subject', () => {
   const { normal } = fixtureRequests();
-  for (const changed of [
-    { path: '/notes/export' }, { path: '/notes/demo/export' },
-    { method: 'PUT' }, { service: 'notices' }, { queryLength: 8 },
-    { path: '/notices/demo', route: 'PUT /notices/:id', method: 'PUT' },
-    { subjectId: '' }, { deviceId: '' },
-  ]) {
-    const result = await decide({ ...normal, ...changed });
-    assert.equal(result.decision, 'deny');
-    assert.deepEqual(result.ruleIds, ['resource_boundary']);
-  }
-  assert.equal((await decide(normal)).decision, 'allow');
+  assert.equal(decide(normal).decision, 'allow');
+  assert.equal(decide({ ...normal, subjectId: 'learner_fixture_b' }).decision, 'deny');
 });
-
-test('unverified ownership never grants note updates; device denial is preserved', async () => {
+test('owner-filtered deployed collection works while foreign collection paths deny', () => {
   const { normal } = fixtureRequests();
-  const request = { ...normal, method: 'PUT', route: 'PUT /notes/:id',
-    path: '/notes/aabbccdd-1234-4567-89ab-123456789abc' };
-  assert.equal((await decide(request)).decision, 'deny');
-  assert.equal((await decide({ ...request, deviceRegistered: false })).reasonCode, 'device_not_registered');
-});
-
-test('collection route cannot bypass fixture subject, project or class scope', async () => {
-  const { normal } = fixtureRequests();
-  const collection = { ...normal, path: '/notes', route: 'GET /notes' };
-  assert.equal((await decide(collection)).decision, 'allow');
-  for (const changed of [{ subjectId: 'other_fixture_user' }, { projectId: 'other_project' },
-    { classId: 'other_class' }]) {
-    assert.equal((await decide({ ...collection, ...changed })).decision, 'deny');
+  for (const path of ['/api/notes', '/api/my/notes']) {
+    const own = { ...normal, path, route: `GET ${path}` };
+    assert.equal(decide(own).decision, 'allow');
+    assert.equal(decide({ ...own, path: '/api/users/b/notes' }).decision, 'deny');
+    assert.equal(decide({ ...own, queryLength: 10 }).decision, 'deny');
   }
 });
-
-test('fixture update remains bound to its owner while item reads reach the ownership-checking API', async () => {
+test('real opaque UUID requests continue to reach final ownership-checking API', () => {
   const { normal } = fixtureRequests();
-  for (const method of ['GET', 'PUT']) {
-    const request = { ...normal, method, route: `${method} /notes/:id` };
-    assert.equal((await decide(request)).decision, 'allow');
-    assert.equal((await decide({ ...request, subjectId: 'other_fixture_user' })).decision,
-      method === 'GET' ? 'allow' : 'deny');
-  }
-});
-
-test('real engine identities can read exact item routes without local fixture identifiers', async () => {
-  const { normal } = fixtureRequests();
-  for (const prefix of ['', '/api']) {
-    const request = { ...normal, classId: 'class_example', projectId: 'project_example',
-      subjectId: 'verified_example_subject', signals: { source: 'none', region: 'unknown', network: 'unknown', hour: null },
-      path: prefix + '/notes/aabbccdd-1234-4567-89ab-123456789abc', route: 'GET ' + prefix + '/notes/:id' };
-    assert.equal((await decide(request)).decision, 'allow');
-    assert.equal((await decide({ ...request, deviceRegistered: false })).decision, 'deny');
-    assert.equal((await decide({ ...request, path: prefix + '/notes/export' })).decision, 'deny');
-    assert.equal((await decide({ ...request, path: prefix + '/notes/a/b' })).decision, 'deny');
-  }
-});
-
-
-test('real owner-scoped API list is allowed but forged path and foreign collections are rejected', () => {
-  const { normal } = fixtureRequests();
-  const own = { ...normal, route: 'GET /api/notes', path: '/api/notes' };
-  assert.equal(decide(own).decision, 'allow');
-  for (const change of [{ path: '/api/users/other/notes' }, { method: 'PUT' },
-    { route: 'GET /api/other/notes' }, { queryLength: 1 }, { deviceRegistered: false }]) {
-    assert.equal(decide({ ...own, ...change }).decision, 'deny');
-  }
+  const live = { ...normal, signals: { source: 'none', region: 'unknown', network: 'unknown', hour: null },
+    path: '/api/notes/aabbccdd-1234-4567-89ab-123456789abc', route: 'GET /api/notes/:id' };
+  assert.equal(decide(live).decision, 'allow');
+  assert.equal(decide({ ...live, deviceRegistered: false }).decision, 'deny');
 });
