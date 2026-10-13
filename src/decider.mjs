@@ -60,8 +60,8 @@ export async function decide(request) {
   // Keep the published local fixture narrowly scoped; real resources require an
   // engine-provided owner binding before the decision layer can authorize them.
   const fixtureDemo = fixtureScope && request.path === '/notes/demo';
-  const itemRead = request.service === 'notes' && request.method === 'GET'
-    && request.route === 'GET /notes/:id' && fixtureDemo;
+  const itemRead = request.service === 'notes' && ['GET', 'PUT'].includes(request.method)
+    && request.route === `${request.method} /notes/:id` && fixtureDemo;
   // Raw query is not exposed by the contract: do not guess which function it selects.
   if ((!collectionRead && !itemRead) || request.queryLength !== 0
       || typeof request.subjectId !== 'string' || !request.subjectId.trim()

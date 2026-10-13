@@ -38,3 +38,12 @@ test('collection route cannot bypass fixture subject, project or class scope', a
     assert.equal((await decide({ ...collection, ...changed })).decision, 'deny');
   }
 });
+
+test('published fixture owner may read and update their resource; another subject cannot', async () => {
+  const { normal } = fixtureRequests();
+  for (const method of ['GET', 'PUT']) {
+    const request = { ...normal, method, route: `${method} /notes/:id` };
+    assert.equal((await decide(request)).decision, 'allow');
+    assert.equal((await decide({ ...request, subjectId: 'other_fixture_user' })).decision, 'deny');
+  }
+});
