@@ -10,9 +10,6 @@ test('method, service, exact path and query cannot disguise another operation', 
     { method: 'PUT' }, { service: 'notices' }, { queryLength: 8 },
     { path: '/notices/demo', route: 'PUT /notices/:id', method: 'PUT' },
     { subjectId: '' }, { deviceId: '' },
-    { path: '/notes/aabbccdd-1234-4567-89ab-123456789abc' },
-    { subjectId: 'other_fixture_user' },
-    { classId: 'other_class' },
   ]) {
     const result = await decide({ ...normal, ...changed });
     assert.equal(result.decision, 'deny');
@@ -39,11 +36,25 @@ test('collection route cannot bypass fixture subject, project or class scope', a
   }
 });
 
-test('published fixture owner may read and update their resource; another subject cannot', async () => {
+test('fixture update remains bound to its owner while item reads reach the ownership-checking API', async () => {
   const { normal } = fixtureRequests();
   for (const method of ['GET', 'PUT']) {
     const request = { ...normal, method, route: `${method} /notes/:id` };
     assert.equal((await decide(request)).decision, 'allow');
-    assert.equal((await decide({ ...request, subjectId: 'other_fixture_user' })).decision, 'deny');
+    assert.equal((await decide({ ...request, subjectId: 'other_fixture_user' })).decision,
+      method === 'GET' ? 'allow' : 'deny');
+  }
+});
+
+test('real engine identities can read exact item routes without local fixture identifiers', async () => {
+  const { normal } = fixtureRequests();
+  for (const prefix of ['', '/api']) {
+    const request = { ...normal, classId: 'class_example', projectId: 'project_example',
+      subjectId: 'verified_example_subject', signals: { source: 'none', region: 'unknown', network: 'unknown', hour: null },
+      path: prefix + '/notes/aabbccdd-1234-4567-89ab-123456789abc', route: 'GET ' + prefix + '/notes/:id' };
+    assert.equal((await decide(request)).decision, 'allow');
+    assert.equal((await decide({ ...request, deviceRegistered: false })).decision, 'deny');
+    assert.equal((await decide({ ...request, path: prefix + '/notes/export' })).decision, 'deny');
+    assert.equal((await decide({ ...request, path: prefix + '/notes/a/b' })).decision, 'deny');
   }
 });

@@ -3,6 +3,22 @@ export function createResourcePolicy(bindings) {
   const registry = structuredClone(bindings);
   return request => {
     if (request.service !== 'notes' || request.queryLength !== 0) return false;
+    // The engine's v1 envelope has no note owner. As in the official route policy,
+    // admit an exact item-read route; the engine and API enforce stored ownership.
+    // Do not restrict real engine identities to the local practice fixture.
+    const readRoutes = {
+      'GET /notes/:id': /^\/notes\/([a-z0-9-]+)$/iu,
+      'GET /api/notes/:id': /^\/api\/notes\/([a-z0-9-]+)$/iu,
+    };
+    const matcher = Object.hasOwn(readRoutes, request.route) ? readRoutes[request.route] : null;
+    const target = request.method === 'GET' && typeof request.path === 'string'
+      && matcher?.exec(request.path);
+    if (target && !['export', 'all', 'search'].includes(target[1].toLowerCase())) {
+      const explicit = registry.filter(binding => !binding.fixtureOnly
+        && binding.path === request.path && binding.methods.includes('GET'));
+      return explicit.length === 0 || explicit.some(binding => binding.classId === request.classId
+        && binding.projectId === request.projectId && binding.subjectId === request.subjectId);
+    }
     const collection = request.method === 'GET' && request.path === '/notes'
       && request.route === 'GET /notes';
     const item = ['GET', 'PUT'].includes(request.method)

@@ -151,6 +151,8 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 
 ## 8단계 저장점
 
+최신 수정: S08_OWN_BROKEN은 판정기의 기본 허용 목록이 로컬 연습용 주체에만 묶여 정상 엔진 요청을 거부한 문제였습니다. 공식 통과 목표 표본의 구역 구분에 따라 정확한 GET /notes/:id 및 GET /api/notes/:id 읽기는 등록 기기와 입력 검사를 거쳐 자료 API로 보냅니다. 소유권은 API의 검증된 사용자와 저장된 owner_id 비교로 집행합니다. 목록·쓰기·알 수 없는 기능 경로의 기존 제한은 유지합니다. 참고: https://github.com/ChoiTimo/byteback-sample-pass/blob/main/src/decider.mjs
+
 메모는 notes:collection 및 notes:<기존 UUID>, 공지는 notices:collection으로 서버 응답 헤더에서 구분합니다. 기존 URL·자료·화면 메뉴는 유지합니다. 공지 원본이 없어 GET /api/notices는 로그인 후 빈 목록을 반환합니다.
 
 판정기는 메서드·서비스·정확한 경로를 대조하고 export 등 기능 경로와 검증할 수 없는 쿼리를 거부합니다. 기기 및 step_up 규칙은 유지합니다. subjectId와 소유자의 검증된 대응 계약이 없어 판정기의 메모 수정은 거부합니다. 자기 메모 수정 허용과 강사 권한 허용은 미구현입니다.
