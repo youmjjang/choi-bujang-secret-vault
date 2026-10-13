@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { SourceTextModule, SyntheticModule, createContext } from 'node:vm';
 import { resourceId } from '../src/resource-id.mjs';
 import { noteTarget } from '../src/note-target.mjs';
+import { createNoticeHandler } from '../src/notice-api.mjs';
 
 async function invoke(file, { method = 'GET', data, body, userId = 'fixture_a' } = {}) {
   const filters = [];
@@ -22,6 +23,7 @@ async function invoke(file, { method = 'GET', data, body, userId = 'fixture_a' }
       : specifier.includes('verify-login') ? { createLoginVerifier: () => async () => userId ? { userId } : null }
       : specifier.includes('resource-id') ? { resourceId }
       : specifier.includes('note-target') ? { noteTarget }
+      : specifier.includes('notice-api') ? { createNoticeHandler }
       : specifier === 'node:crypto' ? { randomUUID: () => 'aabbccdd-1234-4567-89ab-123456789abc' }
       : { default: {} };
     return new SyntheticModule(Object.keys(exports), function () {
