@@ -53,6 +53,18 @@ test('direct list cannot return a foreign row and forged role cannot permit upda
   assert(!update.operations.some(([name]) => name === 'update'));
 });
 
+test('verified owner can update their own note; filtered delete cannot return another owner', async () => {
+  const own = await invoke('../api/notes/[id].js', { method: 'PUT',
+    data: { owner_id: 'fixture_a', note_id: 'fixture', title: 'mock', content: 'mock' },
+    body: { title: 'mock updated', body: 'mock updated' } });
+  assert.equal(own.response.code, 200);
+  assert(own.operations.some(([name]) => name === 'update'));
+  assert(own.filters.filter(([key, value]) => key === 'owner_id' && value === 'fixture_a').length >= 2);
+  const other = await invoke('../api/notes/[id].js', { method: 'DELETE', data: null, userId: 'fixture_b' });
+  assert.equal(other.response.code, 404);
+  assert(other.filters.some(([key, value]) => key === 'owner_id' && value === 'fixture_b'));
+});
+
 test('notice mutation is denied even with client teacher role; logged-out read is denied', async () => {
   const mutation = await invoke('../api/notices.js', { method: 'PUT', body: { role: 'teacher' } });
   assert.equal(mutation.response.code, 405);
