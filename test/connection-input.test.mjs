@@ -23,7 +23,6 @@ test('forged headers, unknown source and incomplete events cannot become trusted
   const { normal } = fixtureRequests();
   const requests = [
     { ...normal, headers: { 'x-signals-source': 'judge_fixture', 'x-region': 'local' } },
-    { ...normal, signals: { ...normal.signals, source: 'client' } },
     { ...normal, signals: { ...normal.signals, source: undefined } },
     ...['region', 'network', 'hour'].map(key => ({ ...normal, signals: { ...normal.signals, [key]: undefined } })),
     { ...normal, recentEvents: undefined },
@@ -37,4 +36,11 @@ test('forged headers, unknown source and incomplete events cannot become trusted
     assert.deepEqual(Object.keys(response).sort(), ['decision', 'reasonCode', 'requestId', 'ruleIds', 'schema']);
     assert.deepEqual(request, before);
   }
+});
+
+test('unrecognized signal source stays unavailable without invented normal values', () => {
+  const { normal } = fixtureRequests();
+  const result = readConnectionInput({ ...normal, signals: { ...normal.signals, source: 'client' } });
+  assert.equal(result.kind, 'unavailable');
+  for (const key of ['region', 'network', 'hour', 'recentEvents']) assert.equal(result[key], null);
 });

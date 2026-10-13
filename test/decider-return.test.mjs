@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import { decide } from '../src/decider.mjs';
 import { fixtureRequests } from '../scripts/fixture-7.mjs';
 
+test('verified engine route-only reading reaches the owner-checking API', () => {
+  const request = { schema: 'aleph.decision.v1', requestId: 'synthetic-route-only',
+    method: 'GET', route: 'GET /api/notes/:id', deviceRegistered: true,
+    signals: { source: 'unavailable_example' } };
+  assert.equal(decide(request).decision, 'allow');
+  assert.equal(decide({ ...request, deviceRegistered: false }).decision, 'deny');
+  assert.equal(decide({ ...request, route: 'GET /api/notes' }).decision, 'deny');
+  assert.equal(decide({ ...request, path: '/api/notes/export' }).decision, 'deny');
+  assert.equal(decide({ ...request, method: 'PUT' }).decision, 'deny');
+});
+
 test('direct and awaited callers receive identical complete decisions', async () => {
   const { normal, suspicious } = fixtureRequests();
   const cases = [

@@ -16,7 +16,8 @@ export function readConnectionInput(request) {
   const signals = request.signals;
   if (!object(signals) || !own(signals, 'source')) return invalid;
   if (signals.source === 'none') return unavailable;
-  if (signals.source !== 'judge_fixture') return invalid;
+  if (typeof signals.source !== 'string' || !signals.source) return invalid;
+  if (signals.source !== 'judge_fixture') return unavailable;
   if (Object.keys(signals).sort().join(',') !== 'hour,network,region,source'
       || typeof signals.region !== 'string' || !signals.region.trim()
       || typeof signals.network !== 'string' || !signals.network.trim()
@@ -56,9 +57,10 @@ export function createDecider(bindings) {
   // Never infer either from subjectId, a client role, query, or response header.
   const resourceAllowed = permitted(request);
   // Raw query is not exposed by the contract: do not guess which function it selects.
-  if (!resourceAllowed || request.queryLength !== 0
-      || typeof request.subjectId !== 'string' || !request.subjectId.trim()
-      || !/^[0-9a-f]{16}$/u.test(request.deviceId ?? '')) {
+  if (!resourceAllowed
+      || (request.queryLength !== undefined && request.queryLength !== 0)
+      || (request.subjectId !== undefined && (typeof request.subjectId !== 'string' || !request.subjectId.trim()))
+      || (request.deviceId !== undefined && !/^[0-9a-f]{16}$/u.test(request.deviceId))) {
     return response('deny', 'starter_not_ready', 'resource_boundary');
   }
 

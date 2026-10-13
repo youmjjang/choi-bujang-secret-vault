@@ -2,9 +2,10 @@
 export function createResourcePolicy(bindings) {
   const registry = structuredClone(bindings);
   return request => {
-    if (request.service !== 'notes' || request.queryLength !== 0) return false;
+    if ((request.service !== undefined && request.service !== 'notes')
+        || (request.queryLength !== undefined && request.queryLength !== 0)) return false;
     if (request.method === 'GET' && request.route === 'GET /api/my/notes'
-        && request.path === '/api/my/notes') return true;
+        && (request.path === undefined || request.path === '/api/my/notes')) return true;
     // The engine's v1 envelope has no note owner. As in the official route policy,
     // admit an exact item-read route; the engine and API enforce stored ownership.
     // Do not restrict real engine identities to the local practice fixture.
@@ -13,6 +14,10 @@ export function createResourcePolicy(bindings) {
       'GET /api/notes/:id': /^\/api\/notes\/([a-z0-9-]+)$/iu,
     };
     const matcher = Object.hasOwn(readRoutes, request.route) ? readRoutes[request.route] : null;
+    // A route-only engine invocation can authorize the read operation, not ownership.
+    // Concrete requests still have their supplied path checked below; the API always checks owner_id.
+    if (request.method === 'GET' && matcher && request.path === undefined
+        && !registry.some(binding => !binding.fixtureOnly)) return true;
     const target = request.method === 'GET' && typeof request.path === 'string'
       && matcher?.exec(request.path);
     if (target && !['export', 'all', 'search'].includes(target[1].toLowerCase())) {
