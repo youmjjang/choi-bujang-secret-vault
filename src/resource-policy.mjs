@@ -2,7 +2,10 @@
 export function createResourcePolicy(bindings) {
   const registry = structuredClone(bindings);
   return request => {
-    if ((request.service !== undefined && request.service !== 'notes')
+    const noticeRoute = typeof request.route === 'string'
+      && /^(GET|PUT) \/(?:api\/)?notices(?:\/:id)?$/u.test(request.route);
+    const expectedService = noticeRoute ? 'notices' : 'notes';
+    if ((request.service !== undefined && request.service !== expectedService)
         || (request.queryLength !== undefined && request.queryLength !== 0)) return false;
     // The real notes collection is owner-filtered by api/notes.js.
     if (request.method === 'GET' && request.route === 'GET /api/notes'
@@ -32,10 +35,11 @@ export function createResourcePolicy(bindings) {
     const collection = request.method === 'GET' && request.path === '/notes'
       && request.route === 'GET /notes';
     const item = ['GET', 'PUT'].includes(request.method)
-      && request.route === `${request.method} /notes/:id`
-      && typeof request.path === 'string' && /^\/notes\/[a-z0-9-]+$/iu.test(request.path);
-    const notice = request.method === 'PUT' && request.route === 'PUT /notices/:id'
-      && typeof request.path === 'string' && /^\/notices\/[a-z0-9-]+$/iu.test(request.path);
+      && [`${request.method} /notes/:id`, `${request.method} /api/notes/:id`].includes(request.route)
+      && typeof request.path === 'string' && /^\/(?:api\/)?notes\/[a-z0-9-]+$/iu.test(request.path);
+    const notice = request.method === 'PUT'
+      && ['PUT /notices/:id', 'PUT /api/notices/:id'].includes(request.route)
+      && typeof request.path === 'string' && /^\/(?:api\/)?notices\/[a-z0-9-]+$/iu.test(request.path);
     if (!collection && !item && !notice) return false;
     return registry.some(binding => binding.classId === request.classId
       && binding.projectId === request.projectId && binding.subjectId === request.subjectId

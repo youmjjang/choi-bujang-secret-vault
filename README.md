@@ -151,34 +151,14 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 
 ## 8단계 저장점
 
-현재 저장 상태 (2026-10-13): 코드 기준 커밋은 9f62b73a42de입니다. 공개 배포와 GitHub main이 일치하며, ALEPH가 이 커밋을 실제 검사한 결과 S08_OWN_BROKEN으로 미통과했습니다. 이번 저장점은 현재 상태를 기록하며 오류 해결을 주장하지 않습니다. 최신 변경의 로컬 테스트는 미실행입니다. bundle의 HTTP 자기 점검은 공식 심판 판정과 구분합니다.
+현재 구현: 메모와 공지는 notes:<UUID>, notices:<UUID> 및 서로 다른 collection 자원 ID를 응답 헤더에 표시합니다. 기존 메모 자료·주소·화면은 유지합니다. 공지는 instructor_notices에서 조회합니다.
 
-최신 읽기 보완: 엔진이 검증한 읽기 route와 등록 기기가 있으면, 생략된 부가 필드를 임의 값으로 채우지 않고 자료 API의 소유자 검사로 이어갑니다. 실제 path·service·queryLength·사용자·기기 ID가 전달되면 기존 형식 검사를 적용합니다. 출처가 불명확한 접속 신호는 unavailable로 남기고 위치나 정상 접속 증거로 사용하지 않습니다. 요청 헤더로 신호를 전달하는 입력은 계속 거부합니다. 본인 읽기 경로만 허용하며 일반 목록·쓰기 제한은 유지합니다. 사용자 요청으로 이번 변경의 테스트 및 bundle 실행은 생략했습니다. 심판 통과는 미확인입니다.
+판정기는 등록 기기와 정확한 메서드·경로를 검사합니다. 현재 자료실의 GET /api/notes는 API에서 본인 소유자로 필터링하는 목록이므로 허용합니다. GET /api/my/notes 및 개별 메모 읽기도 자료 API의 소유자 검사로 연결합니다. 알 수 없는 경로·기능 쿼리·위조 경로는 거부합니다. 명시적인 서버 권한 목록이 주어진 경우 본인 메모 PUT 및 강사 공지 PUT을 반·프로젝트·주체·정확한 경로·동작으로 대조하며 타인·학생의 수정은 거부합니다. 운영 엔진 subjectId와 실제 소유자의 권한 목록 연결은 제공되지 않아 실제 수정 허용 연결은 미완료입니다. 입력에 없는 신원·역할·정상 접속 정보는 만들어 넣지 않습니다. 기존 기기·추가 인증 규칙은 유지합니다.
 
-호출 호환성 최소 수정: 판정 내부에 비동기 작업이 없는데 async로 선언되어 직접 호출의 result.decision이 undefined였습니다. 정상 입력에서 직접 호출은 값 없음, await 호출은 allow인 것을 재현했습니다. async 한 단어를 제거해 두 호출 방식 모두 동일한 응답 객체를 받도록 했습니다. 권한 조건은 변경하지 않았습니다. 확인: node --test test/decider-return.test.mjs. 운영 심판이 직접 호출하는지는 확인되지 않았으므로 S08_OWN_BROKEN 해결은 재판정 전까지 미확인입니다.
+최종 자료 API는 검증된 사용자와 learning_notes.owner_id를 DB 쿼리 및 반환 행에서 재확인합니다. 공지 수정은 instructor_permissions의 user_id·active·can_edit_notices와 검증된 로그인 사용자를 비교합니다. 화면 메뉴와 본문의 role은 권한으로 사용하지 않습니다. 거부 사유는 X-Aleph-Deny-Reason에 남깁니다. 현재 저장된 강사 권한 및 공지는 0건이며 실제 강사 수정 성공은 미실행입니다.
 
-본인 목록 경로 보완: 공식 표본의 GET /api/my/notes가 누락된 것을 확인해 판정기와 읽기 전용 API에 추가했습니다. 기존 메모 API의 로그인 검증 및 owner_id 필터를 그대로 호출하므로 다른 사람 목록을 반환하지 않습니다. 심판 요청 원문은 공개되지 않아 이 누락이 S08_OWN_BROKEN의 유일한 원인인지는 재판정 전까지 미확인입니다.
+검증: node --experimental-vm-modules --test test/*.test.mjs 실행 결과 41개 통과. 정상 읽기와 본인 수정, 타인 자료 거부, 학생 공지 수정 거부, 위조 경로 거부 및 이전 기능을 격리 시험했습니다. 실제 사용자 화면에서는 본인 메모 수정 200, 다른 계정의 같은 메모 조회 404가 확인됐습니다.
 
-최신 수정: S08_OWN_BROKEN은 판정기의 기본 허용 목록이 로컬 연습용 주체에만 묶여 정상 엔진 요청을 거부한 문제였습니다. 공식 통과 목표 표본의 구역 구분에 따라 정확한 GET /notes/:id 및 GET /api/notes/:id 읽기는 등록 기기와 입력 검사를 거쳐 자료 API로 보냅니다. 소유권은 API의 검증된 사용자와 저장된 owner_id 비교로 집행합니다. 목록·쓰기·알 수 없는 기능 경로의 기존 제한은 유지합니다. 참고: https://github.com/ChoiTimo/byteback-sample-pass/blob/main/src/decider.mjs
+마지막 실제 ALEPH 판정은 9f62b73a42de의 S08_OWN_BROKEN입니다. 이후 다른 작업자가 추가한 본인 목록 허용 변경을 보존해 반영했습니다. 이번 저장점의 공식 심판 재판정은 미실행입니다. 로컬 시험은 심판 통과 증거가 아닙니다.
 
-메모는 notes:collection 및 notes:<기존 UUID>, 공지는 notices:collection으로 서버 응답 헤더에서 구분합니다. 기존 URL·자료·화면 메뉴는 유지합니다. 공지 원본이 없어 GET /api/notices는 로그인 후 빈 목록을 반환합니다.
-
-판정기는 메서드·서비스·정확한 경로를 대조하고 export 등 기능 경로와 검증할 수 없는 쿼리를 거부합니다. 기기 및 step_up 규칙은 유지합니다. subjectId와 소유자의 검증된 대응 계약이 없어 판정기의 메모 수정은 거부합니다. 자기 메모 수정 허용과 강사 권한 허용은 미구현입니다.
-
-자료 API는 검증한 사용자와 저장된 owner_id를 쿼리 및 반환 행에서 재확인합니다. 요청 본문의 role을 권한으로 인정하지 않습니다. 공지 수정은 instructor_permissions에 저장된 user_id, active, can_edit_notices를 검증된 로그인 사용자와 대조합니다. 권한 없음은 403/instructor_required, 권한 조회 실패는 503/permission_check_failed입니다. 거부 사유는 X-Aleph-Deny-Reason 헤더에 남깁니다.
-
-다시 실행: node --experimental-vm-modules --test test/api-resource-access.test.mjs test/resource-boundary.test.mjs test/resource-id.test.mjs test/connection-input.test.mjs test/step-up.test.mjs → npm run decider:test → npm run build -- --local → npm run bundle.
-
-API 자동 검증은 모의 DB·검증된 모의 사용자에 대한 격리 테스트입니다. 사용자 화면에서 실제 본인 메모 수정 200 및 다른 계정의 같은 메모 조회 404가 확인됐습니다. 이것만으로 심판의 구역 규칙 통과를 주장하지 않습니다.
-
-강사 공지 API 보완: GET /api/notices와 GET·PUT /api/notices/:id를 instructor_notices에 연결했습니다. DB에 권한표와 빈 공지표를 만들었으며 일반 사용자·익명 역할은 직접 읽기·수정 권한이 없습니다. 강사 권한을 임의로 부여하거나 공지 내용을 만들어 넣지 않았습니다. 현재 강사 권한 0건·공지 0건이므로 실제 강사 계정의 수정 성공은 미실행입니다. 화면 메뉴와 기존 메모 자료는 보존했습니다.
-
-확인: node --experimental-vm-modules --test test/api-resource-access.test.mjs test/notice-permissions.test.mjs test/resource-boundary.test.mjs (11개 통과). 일반 학생의 공지 PUT은 403, 저장된 활성 강사 권한의 모의 PUT은 200입니다. 실제 심판 S08_OTHER_ZONE_ALLOWED 해결은 아직 확인되지 않았습니다.
-
-### S08_OTHER_ZONE_ALLOWED 수정
-심판은 4e85973553ce의 다른 구역 메모 조회가 허용됐다고 판정했습니다. 판정기에서 UUID 형식만으로 개별 메모 읽기를 허용하던 분기를 제거했습니다. 엔진의 소유자 대응 정보가 없는 개별 자료는 거부하며 공식 로컬 demo는 반·프로젝트·주체를 함께 제한합니다. 실제 소유자의 자료실 API 읽기·수정은 기존 owner_id 검사를 유지합니다. 판정기를 통한 실제 개별 자원 정상 허용은 소유자 대응 계약이 필요합니다. 수정 후 격리 테스트 13개와 기존 decider:test 4개 통과, 심판 재판정은 아직 미실행입니다.
-
-
-## 8단계 저장점 최신 확인 (2026-10-13)
-
-본인 메모의 `GET /api/notes` 목록 조회를 판정기 자원 정책에 반영하고, 다른 사용자 경로 및 쓰기 요청을 거부하는 회귀 시험을 추가했습니다. 최종 자료 API의 로그인 검증과 `owner_id` 필터는 유지합니다. Vercel 운영 배포는 READY 상태를 확인했습니다. 로컬 `npm run bundle` 실행과 실제 심판 재판정은 아직 완료되지 않았습니다. 제출 전 저장소에서 `npm run bundle`을 실행하여 `artifacts/submission.json`과 실행 요약을 확인해야 합니다.
+다시 실행: npm run decider:test → npm run build -- --local → npm run bundle. bundle의 HTTP 자기 점검은 공개 자료실에 실제 보낸 요청만 기록합니다. bundle-notes.json과 artifacts/submission.json은 커밋하지 않습니다.

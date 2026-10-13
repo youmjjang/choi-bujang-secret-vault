@@ -3,6 +3,21 @@ import assert from 'node:assert/strict';
 import { createDecider } from '../src/decider.mjs';
 import { fixtureRequests } from '../scripts/fixture-7.mjs';
 
+test('explicit server grants distinguish owner updates and instructor updates on actual API routes', () => {
+  const { normal } = fixtureRequests();
+  const path = '/api/notes/aabbccdd-1234-4567-89ab-123456789abc';
+  const noticePath = '/api/notices/aabbccdd-1234-4567-89ab-123456789abc';
+  const binding = (subjectId, path) => ({ classId: normal.classId, projectId: normal.projectId,
+    subjectId, path, methods: ['PUT'] });
+  const policy = createDecider([binding('synthetic_owner_a', path), binding('synthetic_instructor', noticePath)]);
+  const own = { ...normal, method: 'PUT', route: 'PUT /api/notes/:id', path, subjectId: 'synthetic_owner_a' };
+  assert.equal(policy(own).decision, 'allow');
+  assert.equal(policy({ ...own, subjectId: 'synthetic_owner_b' }).decision, 'deny');
+  const notice = { ...own, service: 'notices', route: 'PUT /api/notices/:id', path: noticePath, subjectId: 'synthetic_instructor' };
+  assert.equal(policy(notice).decision, 'allow');
+  assert.equal(policy({ ...notice, subjectId: 'synthetic_student', role: 'teacher' }).decision, 'deny');
+});
+
 test('server bindings permit owner read/update and deny other subjects and client role', async () => {
   const { normal } = fixtureRequests();
   const path = '/notes/aabbccdd-1234-4567-89ab-123456789abc';
