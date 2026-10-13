@@ -1,12 +1,12 @@
-# BYTE BACK 방어전 9단계 저장점
+# BYTE BACK 방어전 10단계 저장점
 
 **7단계 해야 할 일 모두 완료. 사용자 직접 확인 결과 모두 통과 (2026-10-13).**
 
-현재 저장소는 **9단계: 도플갱어를 찾고 권한을 거둡니다**의 가상 사건 탐지와 회수 제안을 추가한 상태입니다. 기존 로그인·메모·공지 API와 8단계 첨부 판정기는 유지합니다. 보너스 XDR 코드는 제거돼 있습니다. 실제 회수와 시간 측정은 심판 확인 전입니다.
+현재 저장소는 **10단계: 백업에서 자료실을 되살립니다**의 비공개 원본 사본과 가상 B 계정 한 건 복구 경로를 추가한 상태입니다. 기존 로그인·메모·공지 API, 첨부 판정기와 탐지기는 유지합니다. 보너스 XDR 코드는 제거돼 있습니다. 실제 심판 B 계정의 HTTP 복구는 심판 확인 전입니다.
 
 - 저장소: https://github.com/youmjjang/choi-bujang-secret-vault
 - Production: https://choi-bujang-secret-vault-6trg.vercel.app
-- 단계 설정: `aleph.config.json`의 `step: 9`
+- 단계 설정: `aleph.config.json`의 `step: 10`
 - 원본 자료 API: `https://lktbmcgmnfcundifrvxs.supabase.co/rest/v1/learning_notes`
 
 ## 현재 동작
@@ -128,3 +128,21 @@ src/detect.mjs의 detect(events)는 공식 docs/DETECT_EVENTS.md 계약에 따�
 기존 decide 응답 다섯 항목과 첨부 판정기는 변경하지 않았습니다. 회수 API·권한 변경·실제 집행은 추가하지 않았습니다. 별도 기기 탐지 함수의 운영 사건 전달 연결과 실제 회수·경과 시간은 미실행이며 심판이 확인해야 합니다.
 
 실행: node --test test/detect.test.mjs (3개 통과), npm run detect:test (공식 가상 사례 6개 통과), npm run decider:test (기존 4개 통과), npm run build -- --local (통과). 정상 사건은 observe, 복합 기기 사건은 대상과 이유가 있는 propose_revocation입니다. npm run bundle은 공개 자료실에 실제 보내는 HTTP 자기 점검이며 회수 실측이나 심판 통과를 의미하지 않습니다.
+
+## 10단계 저장점
+
+시험 정책: src/trial-policy-restore.mjs에서 신뢰하는 해시로 사본을 검증하고 previewPolicyRestore가 사본 버전·현재 버전·메모 서비스의 변경 범위를 먼저 반환합니다. applyTrialPolicyRestore는 그 미리보기의 confirmationHash가 일치할 때만 시험 정책을 복원하며 다른 서비스 규칙과 감사 배열을 보존합니다. 운영 판정기·DB 권한은 이 절차로 바꾸지 않습니다. 사본 없음·검증 실패·확인 누락은 중단합니다.
+
+자료 복구: notes 서비스의 POST /api/restore/:noteId (aleph.config.json.restoreRoute). 검증된 심판 신원 identity=b의 소유 메모만 허용합니다. 요청 본문으로 ID·소유자·내용·권한을 받지 않습니다. 신규 메모가 처음 INSERT될 때 서버 트리거가 note_restore_backups에 비공개 원본과 소유자·내용 SHA-256·정책 SHA-256을 저장합니다. 사본은 수정·삭제된 메모와 별도로 남고 최초 값은 덮어쓰지 않습니다. 기존 9개 메모에 사전 백업이 있었다고 꾸미지 않았으며 사본 없는 메모는 409/verified_backup_missing으로 중단합니다.
+
+복구 RPC는 대상 ID·검증된 소유자·내용 해시·정책 해시를 확인하고 한 건만 원래 내용으로 복원합니다. 새로 조회한 결과의 해시도 다시 확인하며 감사 행을 추가합니다. 감사 삭제 권한은 부여하지 않았습니다. 백업·감사는 일반 사용자와 익명이 읽을 수 없습니다. 메모 본문·토큰·개인정보를 Git·묶음·로그에 넣지 않습니다. 정책 해시는 UTF-8과 LF 줄바꿈으로 정규화합니다.
+
+실측: service_role로 실행한 트랜잭션에서 합성 B 메모의 변조 복구 및 삭제 복구, A의 B 복구 거부, 잘못된 정책 해시 거부, 다른 메모·감사 이력 보존을 검증하고 전체 ROLLBACK했습니다. 이후 기존 메모 9개 유지, 시험 백업·감사 0건, 일반 사용자 백업 읽기와 익명 RPC 실행 및 service_role 감사 삭제 권한 없음이 확인됐습니다. 이것은 DB 합성 시험이며 실제 서명된 심판 B의 HTTP 복구 실측은 아직 미실행입니다.
+
+복구 전후 재시험 순서:
+1. 사전 정책 사본·신뢰 해시를 다시 읽고 previewPolicyRestore의 버전과 notes 변경 범위를 확인합니다. 사본이 없거나 다르면 중단합니다.
+2. 확인한 해시로 시험 정책만 복원하고 A 정상 읽기 허용·B의 A 읽기 거부 및 다른 서비스·감사 보존을 시험합니다: node --test test/restore.test.mjs.
+3. 심판 B만 신규 가상 메모를 만들고 비공개 원본 생성 후 변조 또는 삭제합니다. POST /api/restore/<그 메모 UUID>에 기존 B 인증을 보내고 ID·소유자·내용 해시가 원본과 같은지 검증합니다. 실제 심판 계정 시험은 미실행입니다. 토큰을 출력하지 않습니다.
+4. 일반 API 정상 본인 읽기·수정, 타인 읽기·수정 거부, 타인 목록 거부 및 학생 공지 수정 거부를 다시 시험합니다: node --experimental-vm-modules --test test/api-resource-access.test.mjs test/notice-permissions.test.mjs test/note-target.test.mjs.
+5. 기존 가상 기기·복합 이상·재확인 및 조회 폭주를 확인합니다: npm run decider:test → npm run detect:test. 실제 회수·복구 후 탈취 세션 재접속·운영 엔진 정책 재판정은 미실행입니다.
+6. npm run bundle로 공개 페이지·빈 공개 자료·로그인 없는 메모 조회 거부·로그인 없는 복구 거부를 실제 요청으로 기록합니다. 이 자기 점검을 심판 통과로 표시하지 않습니다.
