@@ -4,7 +4,7 @@ export function createResourcePolicy(bindings) {
   return request => {
     if ((request.service !== undefined && request.service !== 'notes')
         || (request.queryLength !== undefined && request.queryLength !== 0)) return false;
-    if (request.method === 'GET' && request.route === 'GET /api/my/notes'
+    // The real notes collection is owner-filtered by api/notes.js.\n    if (request.method === 'GET' && request.route === 'GET /api/notes'\n        && (request.path === undefined || request.path === '/api/notes')) return true;\n    if (request.method === 'GET' && request.route === 'GET /api/my/notes'
         && (request.path === undefined || request.path === '/api/my/notes')) return true;
     // The engine's v1 envelope has no note owner. As in the official route policy,
     // admit an exact item-read route; the engine and API enforce stored ownership.
