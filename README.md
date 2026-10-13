@@ -1,12 +1,12 @@
-# BYTE BACK 방어전 8단계 저장점
+# BYTE BACK 방어전 9단계 저장점
 
 **7단계 해야 할 일 모두 완료. 사용자 직접 확인 결과 모두 통과 (2026-10-13).**
 
-현재 저장소는 **8단계: 자료마다 갈 수 있는 구역을 나눕니다**의 자원 ID·경로 검사·API 소유자 재확인을 구현한 상태입니다. 기존 기기·이상 접속 규칙, 로그인·메모 기능, 보너스 XDR 작업은 저장소에서 제거했습니다. 7단계는 사용자 직접 확인 결과 모두 통과했습니다. 8단계의 판정기 소유자 대응 계약과 저장된 강사 권한 연결은 아직 없습니다.
+현재 저장소는 **9단계: 도플갱어를 찾고 권한을 거둡니다**의 가상 사건 탐지와 회수 제안을 추가한 상태입니다. 기존 로그인·메모·공지 API와 8단계 첨부 판정기는 유지합니다. 보너스 XDR 코드는 제거돼 있습니다. 실제 회수와 시간 측정은 심판 확인 전입니다.
 
 - 저장소: https://github.com/youmjjang/choi-bujang-secret-vault
 - Production: https://choi-bujang-secret-vault-6trg.vercel.app
-- 단계 설정: `aleph.config.json`의 `step: 8`
+- 단계 설정: `aleph.config.json`의 `step: 9`
 - 원본 자료 API: `https://lktbmcgmnfcundifrvxs.supabase.co/rest/v1/learning_notes`
 
 ## 현재 동작
@@ -118,3 +118,13 @@ Production에서는 Vercel의 서버 전용 환경변수를 유지한 채 GitHub
 현재 판정기는 첨부 원문의 ID 이름 비교 및 단건 경로 정책을 사용합니다. 이 코드의 공식 8단계 통과는 미확인입니다. 본인 목록 경로를 거부할 수 있고 가명 주체와 실제 소유자의 검증된 대응을 구현한 것은 아닙니다.
 
 자료 API는 기존 검증된 로그인 사용자 및 owner_id 비교와 저장된 강사 권한 검사를 유지합니다. bundle의 HTTP 자기 점검은 공개 자료실의 실제 응답만 기록하며 심판 통과 증거가 아닙니다. bundle-notes.json과 artifacts/submission.json은 커밋하지 않습니다.
+
+## 9단계 저장점
+
+src/detect.mjs의 detect(events)는 공식 docs/DETECT_EVENTS.md 계약에 따라 같은 가명 주체의 GET이 어느 10분 구간에서든 120건을 초과할 때만 {action:propose_revocation, reasonCode:burst_read, subject}를 반환합니다. 정상·정확히 120건·서로 다른 주체·10분 밖 조회는 observe입니다. 입력에서는 시각·가명 주체·요청 종류만 선택하며 메모 내용·토큰·실명을 저장하거나 출력하지 않습니다.
+
+로컬 계약에는 기기·네트워크가 없으므로 값을 만들지 않습니다. 별도 detectVerifiedRequests(requests)는 엔진이 검증한 aleph.decision.v1 입력에서 등록된 가상 기기·가명 주체·시각·GET 및 judge_fixture 출처의 unusual 네트워크만 사용합니다. 같은 주체·기기에서 이상 네트워크와 10분 내 120건 초과가 함께 나타날 때만 subject와 deviceId 하나를 포함한 burst_read 회수 제안을 반환합니다. 지역 하나·정상 네트워크·다른 기기의 사건 합산·클라이언트 헤더는 제안 근거로 인정하지 않습니다.
+
+기존 decide 응답 다섯 항목과 첨부 판정기는 변경하지 않았습니다. 회수 API·권한 변경·실제 집행은 추가하지 않았습니다. 별도 기기 탐지 함수의 운영 사건 전달 연결과 실제 회수·경과 시간은 미실행이며 심판이 확인해야 합니다.
+
+실행: node --test test/detect.test.mjs (3개 통과), npm run detect:test (공식 가상 사례 6개 통과), npm run decider:test (기존 4개 통과), npm run build -- --local (통과). 정상 사건은 observe, 복합 기기 사건은 대상과 이유가 있는 propose_revocation입니다. npm run bundle은 공개 자료실에 실제 보내는 HTTP 자기 점검이며 회수 실측이나 심판 통과를 의미하지 않습니다.
