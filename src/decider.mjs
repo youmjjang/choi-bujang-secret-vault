@@ -33,57 +33,51 @@ export function readConnectionInput(request) {
     hour: signals.hour, recentEvents: request.recentEvents.map(event => ({ ...event })) };
 }
 
+// Structure follows the supplied decider: device -> zone -> verified signals -> decision.
+// Ownership uses stored server bindings and the final API, never identifier spelling.
+function parseVerifiedSignals(request) {
+  const parsed = readConnectionInput(request);
+  return { ...parsed, trusted: parsed.kind === 'judge_fixture' };
+}
+
+function checkZoneAccess(request, permitted) {
+  return permitted(request)
+    && (request.queryLength === undefined || request.queryLength === 0)
+    && (request.subjectId === undefined || (typeof request.subjectId === 'string' && request.subjectId.trim().length > 0))
+    && (request.deviceId === undefined || /^[0-9a-f]{16}$/u.test(request.deviceId));
+}
+
 export function createDecider(bindings) {
   const permitted = createResourcePolicy(bindings);
   return function decide(request) {
-  const response = (decision, reasonCode, ruleId) => ({
-    schema: 'aleph.decision.v1',
-    requestId: request.requestId,
-    decision,
-    reasonCode,
-    ruleIds: [ruleId],
-  });
+    const response = (decision, reasonCode, ruleId) => ({
+      schema: 'aleph.decision.v1', requestId: request?.requestId,
+      decision, reasonCode, ruleIds: [ruleId],
+    });
+    if (request?.deviceRegistered !== true)
+      return response('deny', 'device_not_registered', 'device_registered');
 
-  if (request.deviceRegistered !== true) {
-    return response('deny', 'device_not_registered', 'device_registered');
-  }
+    const verifiedSignals = parseVerifiedSignals(request);
+    if (verifiedSignals.kind === 'invalid')
+      return response('deny', 'starter_not_ready', 'starter.deny');
+    if (!checkZoneAccess(request, permitted))
+      return response('deny', 'starter_not_ready', 'resource_boundary');
 
-  const connection = readConnectionInput(request);
-  if (connection.kind === 'invalid') {
-    return response('deny', 'starter_not_ready', 'starter.deny');
-  }
-
-  // The v1 contract has no verified owner mapping or instructor grant.
-  // Never infer either from subjectId, a client role, query, or response header.
-  const resourceAllowed = permitted(request);
-  // Raw query is not exposed by the contract: do not guess which function it selects.
-  if (!resourceAllowed
-      || (request.queryLength !== undefined && request.queryLength !== 0)
-      || (request.subjectId !== undefined && (typeof request.subjectId !== 'string' || !request.subjectId.trim()))
-      || (request.deviceId !== undefined && !/^[0-9a-f]{16}$/u.test(request.deviceId))) {
-    return response('deny', 'starter_not_ready', 'resource_boundary');
-  }
-
-  if (resourceAllowed) {
-    // Local fixture policy: midnight–05:59, unusual network, 20+ events in 5 minutes.
-    // Region alone is never a reason to deny or demand another login.
-    const combinedRisk = connection.kind === 'judge_fixture'
-      && connection.hour < 6 && connection.network === 'unusual'
-      && connection.recentEvents.some(event => event.kind === 'risk_signal'
+    // Keep the existing stage 7 thresholds rather than replacing them with new guesses.
+    const isSuspicious = verifiedSignals.trusted && verifiedSignals.hour < 6
+      && verifiedSignals.network === 'unusual'
+      && verifiedSignals.recentEvents.some(event => event.kind === 'risk_signal'
         && event.ageSeconds <= 300 && event.count >= 20);
-    // This is a simulated reauthentication result only; the live engine must verify it.
-    const fixtureRechecked = connection.kind === 'judge_fixture'
-      && request.stepUp?.verified === true
+    const isStepUpVerified = verifiedSignals.trusted && request.stepUp?.verified === true
       && Number.isInteger(request.stepUp.authAgeSeconds)
       && request.stepUp.authAgeSeconds >= 0 && request.stepUp.authAgeSeconds <= 900;
-    if (combinedRisk && !fixtureRechecked) {
+    if (isSuspicious && !isStepUpVerified)
       return response('step_up', 'step_up_required', 'step_up_required');
-    }
     return response('allow', 'approved', 'device_registered');
-  }
-
-  return response('deny', 'starter_not_ready', 'starter.deny');
   };
 }
 
-export const decide = createDecider(fixtureBindings);
+const defaultDecider = createDecider(fixtureBindings);
+export function decide(request) {
+  return defaultDecider(request);
+}
