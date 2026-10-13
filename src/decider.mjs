@@ -53,11 +53,14 @@ export async function decide(request) {
   // Never infer either from subjectId, a client role, query, or response header.
   const collectionRead = request.service === 'notes' && request.method === 'GET'
     && request.route === 'GET /notes' && request.path === '/notes';
-  const fixtureDemo = connection.kind === 'judge_fixture' && request.path === '/notes/demo';
-  const exactNotePath = typeof request.path === 'string'
-    && /^\/notes\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(request.path);
+  // UUID syntax proves only the resource address, never its ownership.
+  // Keep the published local fixture narrowly scoped; real resources require an
+  // engine-provided owner binding before the decision layer can authorize them.
+  const fixtureDemo = connection.kind === 'judge_fixture' && request.path === '/notes/demo'
+    && request.classId === 'class_fixture' && request.projectId === 'project_fixture'
+    && request.subjectId === 'learner_fixture';
   const itemRead = request.service === 'notes' && request.method === 'GET'
-    && request.route === 'GET /notes/:id' && (exactNotePath || fixtureDemo);
+    && request.route === 'GET /notes/:id' && fixtureDemo;
   // Raw query is not exposed by the contract: do not guess which function it selects.
   if ((!collectionRead && !itemRead) || request.queryLength !== 0
       || typeof request.subjectId !== 'string' || !request.subjectId.trim()

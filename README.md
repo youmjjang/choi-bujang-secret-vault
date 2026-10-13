@@ -160,3 +160,6 @@ https://console.typesafe.ai 에서 받은 키를 서버의 `TYPESAFE_API_KEY` �
 다시 실행: node --experimental-vm-modules --test test/api-resource-access.test.mjs test/resource-boundary.test.mjs test/resource-id.test.mjs test/connection-input.test.mjs test/step-up.test.mjs → npm run decider:test → npm run build -- --local → npm run bundle.
 
 API 검증은 모의 DB·검증된 모의 사용자에 대한 격리 테스트입니다. 실제 A/B 계정의 8단계 직접 요청은 미실행입니다. 마지막 확인 공개 배포는 7단계이며 이번 저장점은 원격 푸시·8단계 배포·심판 제출 전입니다. 묶음의 HTTP 점검은 기존 공개 사이트 응답만 확인합니다.
+
+### S08_OTHER_ZONE_ALLOWED 수정
+심판은 4e85973553ce의 다른 구역 메모 조회가 허용됐다고 판정했습니다. 판정기에서 UUID 형식만으로 개별 메모 읽기를 허용하던 분기를 제거했습니다. 엔진의 소유자 대응 정보가 없는 개별 자료는 거부하며 공식 로컬 demo는 반·프로젝트·주체를 함께 제한합니다. 실제 소유자의 자료실 API 읽기·수정은 기존 owner_id 검사를 유지합니다. 판정기를 통한 실제 개별 자원 정상 허용은 소유자 대응 계약이 필요합니다. 수정 후 격리 테스트 13개와 기존 decider:test 4개 통과, 심판 재판정은 아직 미실행입니다.

@@ -10,6 +10,9 @@ test('method, service, exact path and query cannot disguise another operation', 
     { method: 'PUT' }, { service: 'notices' }, { queryLength: 8 },
     { path: '/notices/demo', route: 'PUT /notices/:id', method: 'PUT' },
     { subjectId: '' }, { deviceId: '' },
+    { path: '/notes/aabbccdd-1234-4567-89ab-123456789abc' },
+    { subjectId: 'other_fixture_user' },
+    { classId: 'other_class' },
   ]) {
     const result = await decide({ ...normal, ...changed });
     assert.equal(result.decision, 'deny');
