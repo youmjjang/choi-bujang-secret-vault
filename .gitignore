@@ -7,6 +7,8 @@ public/aleph.json
 xdr/alerts.log
 xdr/known-cve/deny-rules.json
 xdr/known-cve/deny-rules.json.*.tmp
+xdr/persistence/deny-rules.json
+xdr/persistence/deny-rules.json.*.tmp
 xdr/brute-force/deny-rules.json
 xdr/brute-force/replay-deny-rules.json
 xdr/web-injection/deny-rules.json
