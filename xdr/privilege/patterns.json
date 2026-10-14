@@ -1,0 +1,61 @@
+{
+  "schema": "xdr.privilege.patterns.v1",
+  "references": {
+    "privilegeExploitation": "https://attack.mitre.org/techniques/T1068/",
+    "validAccountAbuse": "https://attack.mitre.org/techniques/T1078/",
+    "groupManipulation": "https://attack.mitre.org/techniques/T1098/007/"
+  },
+  "patterns": [
+    {
+      "name": "unexpected_administrator_group_addition",
+      "techniques": ["T1098.007", "T1078"],
+      "condition": {
+        "fields": ["rule.description", "rule.mitre", "data.group", "data.srcuser", "data.count"],
+        "required": [
+          "경보가 관리자 그룹에 계정을 추가하거나 제거된 권한을 다시 부여한 사건을 명시합니다. 단순 그룹 목록 조회는 제외합니다.",
+          "평범한 계정의 비정상 권한 변경, 낯선 원격 접속, 승인된 회수 직후 재추가 등 확인된 이상 맥락을 함께 찾습니다."
+        ],
+        "supporting": ["추가 직후 관리자 명령 실행", "같은 출발지에서 여러 계정의 그룹 추가", "권한 회수 직후 반복 재추가"],
+        "exclude": "검증된 승인 절차에 따른 정상 관리자 그룹 변경은 제외합니다. data.group 값만 있거나 승인 정보를 읽지 못했다는 이유만으로 악성으로 단정하지 않습니다."
+      },
+      "evidence": "관리자 그룹 추가의 직접 근거는 MITRE T1098.007이며, 정상 계정의 권한을 악용하는 맥락은 T1078로 구분해 승인되지 않은 권한 변경을 확인합니다.",
+      "sources": ["https://attack.mitre.org/techniques/T1098/007/", "https://attack.mitre.org/techniques/T1078/"]
+    },
+    {
+      "name": "unfamiliar_administrative_execution",
+      "techniques": ["T1068", "T1078"],
+      "condition": {
+        "fields": ["rule.description", "rule.mitre", "data.srcuser", "data.srcip", "data.count"],
+        "required": [
+          "경보가 관리자 명령 실행 또는 세션의 관리자 권한 전환을 명시합니다.",
+          "막 관리자 그룹에 들어온 계정, 처음 보는 접속 경로, 다른 계정의 권한 사용 등 확인된 비정상 권한 사용 맥락을 함께 찾습니다."
+        ],
+        "supporting": ["직전 그룹 권한 변경", "평소와 다른 출발지", "명령 실행과 계정 신원 사이의 불일치"],
+        "exclude": "검증된 기존 관리자의 승인된 수업·업무 명령은 제외합니다. 원본에 명령 이름이나 신원 이력이 없으면 임의로 만들지 않습니다."
+      },
+      "evidence": "MITRE T1068은 취약점 악용에 의한 권한 상승이고 T1078은 정상 계정 악용이므로, 관리자 명령과 비정상 권한 사용을 점검하되 명령 실행만으로 취약점 악용을 입증했다고 하지 않습니다.",
+      "sources": ["https://attack.mitre.org/techniques/T1068/", "https://attack.mitre.org/techniques/T1078/"]
+    },
+    {
+      "name": "out_of_hours_privileged_activity",
+      "techniques": ["T1078"],
+      "condition": {
+        "fields": ["timestamp", "rule.description", "rule.mitre", "data.srcuser", "data.srcip", "data.group"],
+        "required": [
+          "경보가 관리자 명령·그룹 권한 변경 등 권한 사용을 명시합니다.",
+          "경보 또는 검증된 업무 시간 정책이 수업·업무 시간 밖의 사용임을 확인합니다."
+        ],
+        "supporting": ["처음 보는 출발지와 함께 발생", "그룹 추가와 관리자 명령이 동시에 발생", "승인된 작업 이력에 없는 사용"],
+        "exclude": "승인된 야간 유지보수·예약 작업은 제외합니다. 실제 업무 시간·시간대 정책이 없으면 고정 시간표를 가정하지 않고, 시각 하나만으로 차단하지 않습니다."
+      },
+      "evidence": "MITRE T1078은 탈취한 정상 계정으로 접근·권한을 악용하는 기법이므로, 확인된 업무 시간 이탈을 권한 변경·낯선 접속 같은 추가 맥락과 결합해 점검합니다.",
+      "sources": ["https://attack.mitre.org/techniques/T1078/"]
+    }
+  ],
+  "limitations": [
+    "규칙 수준, 관리자라는 단어, 출발 주소, 업무 시간 이탈 하나만으로 공격을 확정하지 않습니다.",
+    "현재 원본 경보에는 승인 이력·정상 역할 목록·명령 원문·업무 시간 정책이 완전하게 포함되지 않으므로 없는 정보를 만들어 판단 근거로 쓰지 않습니다.",
+    "관리자 그룹 추가를 T1068의 취약점 악용으로 무조건 분류하지 않습니다. 원본 경보의 기법 표기는 바꾸지 않고 직접 근거를 별도로 기록합니다.",
+    "근거가 불충분한 사건은 추가 확인용 알림 후보이고, 정상 관리 작업을 거부 규칙에 넣는 근거가 아닙니다."
+  ]
+}
