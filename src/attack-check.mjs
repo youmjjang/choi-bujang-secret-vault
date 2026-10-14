@@ -34,6 +34,9 @@ export async function runAttackChecks(config) {
       redirect: 'error', signal: AbortSignal.timeout(15000),
       method: check.method ?? 'GET',
       headers: { Accept: check.kind === 'page' ? 'text/html' : 'application/json' },
+      // Runner metadata links this real request to its submission record.
+      // It is not a browser header, identity claim or authorization input.
+      alephEvidence: { caseId: check.attackId, requestKey: 'read' },
     });
     const body = await response.text();
     let passed = false;

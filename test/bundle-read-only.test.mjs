@@ -5,10 +5,13 @@ import { runAttackChecks } from '../src/attack-check.mjs';
 test('bundle sends only HTTPS GET/HEAD and leaves both POST checks not_run', async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];
+  const evidence = [];
   globalThis.fetch = async (url, options) => {
     assert.equal(url.protocol, 'https:');
     assert(['GET', 'HEAD'].includes(options.method));
     calls.push(url.pathname);
+    assert.equal(options.alephEvidence?.requestKey, 'read');
+    evidence.push(options.alephEvidence.caseId);
     if (url.pathname === '/') return new Response('<form id="login-form"></form>');
     if (url.pathname === '/data.json') return Response.json({ notes: [] });
     if (url.pathname === '/manifest.json') return Response.json({ name: 'BYTE BACK 내 자료실', start_url: '/', display: 'standalone' });
@@ -23,6 +26,8 @@ test('bundle sends only HTTPS GET/HEAD and leaves both POST checks not_run', asy
     const records = await runAttackChecks({ step: 12, publicAppUrl: 'https://example.invalid' });
     assert.equal(calls.length, 6);
     assert.equal(records.length, 8);
+    assert.deepEqual(evidence, records.filter(record => record.observed !== 'not_run').map(record => record.attackId));
+    assert.equal(new Set(evidence).size, 6);
     for (const id of ['unauthenticated_restore', 'device_request_unavailable'])
       assert.equal(records.find(row => row.attackId === id).observed, 'not_run');
     assert(!calls.some(path => path.startsWith('/api/restore/') || path === '/api/device/request'));

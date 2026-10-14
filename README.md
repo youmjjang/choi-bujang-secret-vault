@@ -200,3 +200,9 @@ node --experimental-vm-modules --test test/device-approval.test.mjs test/api-res
 `node --test test/bundle-read-only.test.mjs`로 묶음 점검이 공개 HTTPS 읽기 요청 6건만 보내고 POST 두 건은 실제 전송 없이 미실행으로 기록하는 것을 검증했습니다. 기존 가상 판정 시험 4개도 통과했습니다. 이 로컬 검증은 공식 격리 심판의 재실행 성공을 대신하지 않습니다.
 
 직접 확인: `npm run bundle` 뒤 `artifacts/submission.json`에서 `unauthenticated_restore`와 `device_request_unavailable`의 observed가 정확히 `not_run`인지 확인합니다. 최신 커밋의 두 주소로 12단계에 다시 제출하면 공식 격리 실행 결과를 확인할 수 있습니다.
+
+### 12단계 실행 기록 연결 수정 (2026-10-14)
+
+심판은 읽기 점검 6건에 대해 해당 attackId의 요청 기록을 찾지 못했습니다. `src/attack-check.mjs`의 실제 fetch에 공식 표본의 runner 메타데이터 `alephEvidence: {caseId: check.attackId, requestKey: "read"}`를 추가했습니다. 이는 HTTP 헤더·사용자 신원·권한 입력이 아니며, 실제 요청을 제출 점검 ID와 연결하기 위한 정보입니다. 없는 요청을 생성해 기록하지 않습니다.
+
+읽기 전용 회귀 시험은 실제 전송 함수에 넘긴 caseId와 미실행을 제외한 묶음 attackId가 6건 모두 일치하고 중복되지 않는지 검증합니다. POST 두 건은 계속 observed `not_run`입니다. 해당 시험과 1,296개 가상 조합의 판정기 계약 검사가 통과했습니다. 자료 API·판정기·화면 수치 계산은 바꾸지 않았습니다. 공식 격리 환경의 연결 확인은 최신 커밋을 다시 제출해 시행합니다.
