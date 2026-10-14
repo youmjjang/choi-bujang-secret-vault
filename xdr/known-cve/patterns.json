@@ -30,6 +30,18 @@
       "evidence": "FullHunt는 log4j-scan을 CVE-2021-44228 점검 도구로 공개했으므로 명시적 이름은 점검 흔적의 보조 신호이며, 이 이름만으로 악용 성공이나 악성 여부를 확정하지 않습니다.",
       "sources": ["https://github.com/fullhunt/log4j-scan"]
     }
+    ,{
+      "name": "t1190_rule_context",
+      "condition": {
+        "fields": ["rule.mitre", "rule.level"],
+        "technique": "T1190",
+        "minimumLevel": 5,
+        "maximumConfidence": 0.5,
+        "description": "Wazuh가 T1190으로 분류한 수준 5 이상 경보에 직접 악용 구문이 없으면 확인이 필요한 맥락으로만 알립니다. 수준만으로는 매칭하지 않고 차단으로 올리지 않습니다."
+      },
+      "evidence": "MITRE T1190은 공개 애플리케이션 취약점 악용 분류이며, 이 분류가 붙은 경보만으로 실제 JNDI 악용을 입증할 수 없어 알림 수준의 보조 근거로만 사용합니다.",
+      "sources": ["https://attack.mitre.org/techniques/T1190/"]
+    }
   ],
   "limitations": "직접 문자열 패턴입니다. 난독화·인코딩 우회 탐지를 완료했다고 주장하지 않으며, CVE 이름·규칙 수준·일반 도구 사용만으로 악성 패턴을 추가하지 않습니다."
 }

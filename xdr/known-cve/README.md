@@ -17,3 +17,5 @@ node --experimental-vm-modules --test test/known-cve-respond.test.mjs test/known
 ```
 
 24건 재흐름 시험은 합성 엔진 요청과 시험 시계·임시 파일을 사용합니다. 명확한 패턴만 거부되고 정상 기기 요청·연결되지 않은 경보·애매한 패턴은 차단 규칙을 만들지 않습니다. 만료 뒤에는 기존 정상 판정으로 돌아갑니다. 운영 PC·실제 엔진 차단 실측이 아닙니다.
+
+최종 분류 확인: T1190으로 분류된 불확실한 경보의 맥락은 별도 근거 패턴으로 알림만 남깁니다. 현재 result.json은 block 8 · alert 8 · record 8이며 정상 8건의 block은 0건입니다. 판단 모듈은 여전히 import·입출력·외부 요청이 없습니다.

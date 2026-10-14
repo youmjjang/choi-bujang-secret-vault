@@ -220,3 +220,9 @@ node --experimental-vm-modules --test test/device-approval.test.mjs test/api-res
 2026-10-14에 `npm run xdr:run -- known-cve`를 다시 실제 실행해 `xdr/known-cve/result.json`을 갱신했습니다. 결과는 **block 8 · alert 0 · record 16**, 원본 정상 이벤트 `kc-17`~`kc-24` 8건의 block은 0건입니다. 이 fixture에는 현재 두 패턴의 부분 구문/명시적 도구명만 맞는 경보가 없어 alert는 0이며, 별도 합성 경보로 alert 분기를 시험했습니다. 심판 판정이나 운영 PC 차단을 실측한 결과로 보고하지 않습니다.
 
 다시 실행: `npm run xdr:run -- known-cve`. 판단·읽기·응답 연결 재시험: `node --experimental-vm-modules --test test/known-cve-respond.test.mjs test/known-cve-decide.test.mjs test/known-cve-reader.test.mjs`.
+
+### xdr-03 최종 확인 보완 (2026-10-14)
+
+위 저장점 최초 결과의 애매한 8건이 record였던 점을 보완했습니다. 기존 직접 악용 패턴은 그대로 두고 Wazuh가 MITRE T1190으로 분류한 수준 5 이상 경보의 맥락만 확신도 0.5의 알림으로 취급하는 근거 패턴을 추가했습니다. 직접 JNDI 구문 없는 경보는 수준이 높아도 block으로 올리지 않습니다. 단순 CVE 이름이나 규칙 수준만 있는 이벤트는 이 맥락 패턴에 매칭되지 않습니다.
+
+명령을 실제 재실행해 result.json의 **block 8 · alert 8 · record 8**을 확인했습니다. 명확한 8건은 block, 애매한 8건은 alert, 정상 kc-17~kc-24 8건은 record이며 정상 block은 0건입니다. 단독 판정·읽기·응답 연결·전체 24건 재흐름을 포함한 시험 8개가 통과했습니다. 일반 판정 규칙과 원본 fixture는 바꾸지 않았습니다. 운영 엔진 자동 연결의 상태는 앞 절과 같이 미실행입니다.

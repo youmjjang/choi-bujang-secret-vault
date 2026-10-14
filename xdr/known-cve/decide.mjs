@@ -21,22 +21,38 @@ const PATTERNS = Object.freeze([
     evidence: 'FullHunt는 log4j-scan을 CVE-2021-44228 점검 도구로 공개했으므로 명시적 이름은 점검 흔적의 보조 신호이며, 이 이름만으로 악용 성공이나 악성 여부를 확정하지 않습니다.',
     sources: Object.freeze(['https://github.com/fullhunt/log4j-scan']),
   }),
+  Object.freeze({
+    name: 't1190_rule_context',
+    condition: Object.freeze({
+      fields: Object.freeze(['rule.mitre', 'rule.level']), technique: 'T1190',
+      minimumLevel: 5, maximumConfidence: 0.5,
+      description: 'Wazuh가 T1190으로 분류한 수준 5 이상 경보에 직접 악용 구문이 없으면 확인이 필요한 맥락으로만 알립니다. 수준만으로는 매칭하지 않고 차단으로 올리지 않습니다.',
+    }),
+    evidence: 'MITRE T1190은 공개 애플리케이션 취약점 악용 분류이며, 이 분류가 붙은 경보만으로 실제 JNDI 악용을 입증할 수 없어 알림 수준의 보조 근거로만 사용합니다.',
+    sources: Object.freeze(['https://attack.mitre.org/techniques/T1190/']),
+  }),
 ]);
 
-const MATCHERS = PATTERNS.map(pattern => new RegExp(pattern.condition.regex, pattern.condition.flags));
+const MATCHERS = PATTERNS.map(pattern => pattern.condition.regex ? new RegExp(pattern.condition.regex, pattern.condition.flags) : null);
 // A complete expression with a non-empty remote endpoint is clearer than a
 // truncated prefix. Tool identification alone never reaches the block threshold.
 const COMPLETE_LOOKUP = /\$\{\s*jndi\s*:\s*(?:ldap|ldaps|rmi|dns)\s*:\s*\/\/[^\s{}]+\s*\}/iu;
 
 export function decide(alert) {
   const values = [alert?.data?.useragent, alert?.data?.url].filter(value => typeof value === 'string');
-  const matches = PATTERNS.filter((pattern, index) => values.some(value => MATCHERS[index].test(value)));
+  const matches = PATTERNS.filter((pattern, index) => MATCHERS[index] && values.some(value => MATCHERS[index].test(value)));
   let confidence = 0;
   if (matches.some(pattern => pattern.name === 'jndi_remote_lookup')) {
     confidence = values.some(value => COMPLETE_LOOKUP.test(value)) ? 0.95 : 0.7;
     if (confidence >= 0.85 && matches.some(pattern => pattern.name === 'explicit_log4j_scan_marker')) confidence = 0.98;
   } else if (matches.some(pattern => pattern.name === 'explicit_log4j_scan_marker')) {
     confidence = 0.6;
+  }
+  if (confidence === 0 && Array.isArray(alert?.rule?.mitre)
+      && alert.rule.mitre.includes(PATTERNS[2].condition.technique)
+      && Number.isInteger(alert.rule.level) && alert.rule.level >= PATTERNS[2].condition.minimumLevel) {
+    matches.push(PATTERNS[2]);
+    confidence = PATTERNS[2].condition.maximumConfidence;
   }
   return {
     action: confidence >= 0.85 ? 'block' : confidence >= 0.5 ? 'alert' : 'record',
