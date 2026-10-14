@@ -192,3 +192,11 @@ node --experimental-vm-modules --test test/device-approval.test.mjs test/api-res
 - `npm run decider:contract`는 정상/금지/추가 확인을 포함한 1,296개 가상 조합에서 문서의 18개 요청 이름과 중첩 필드만 접근하는지 검사합니다. 응답의 정확한 5개 이름, 요청 ID 보존, 결정과 사유 코드 형식, RULE_IDS에 있는 중복 없는 규칙 이름 및 입력 보존을 검증했고 두 시험이 통과했습니다. 이는 해당 조합의 로컬 계약 검사이며 공식 41종 공격이나 모든 가능한 입력의 검증을 의미하지 않습니다.
 - 기존 판정기 파일은 수정하지 않았고 정책/백업 기준 해시를 유지했습니다. 기존 `npm run decider:test`의 가상 요청 4개와 `npm run build -- --local`도 다시 통과했습니다.
 - `aleph.config.json`의 `step: 12`를 유지했습니다. 최종 가산 점수는 공식 심판의 판정으로 확인합니다.
+
+### 12단계 격리 묶음의 첫 오류 수정 (2026-10-14)
+
+심판의 `S12_BUNDLE_UNSUPPORTED` 첫 오류는 묶음 점검에서 POST를 보낸 것이었습니다. `src/attack-check.mjs`에서 GET·HEAD 이외의 요청은 보내지 않고 `observed: "not_run"`으로 남깁니다. 복구 거부와 기기 승인 요청 두 점검이 여기에 해당합니다. 보호 API, 판정기와 화면 기록 API는 변경하지 않았습니다.
+
+`node --test test/bundle-read-only.test.mjs`로 묶음 점검이 공개 HTTPS 읽기 요청 6건만 보내고 POST 두 건은 실제 전송 없이 미실행으로 기록하는 것을 검증했습니다. 기존 가상 판정 시험 4개도 통과했습니다. 이 로컬 검증은 공식 격리 심판의 재실행 성공을 대신하지 않습니다.
+
+직접 확인: `npm run bundle` 뒤 `artifacts/submission.json`에서 `unauthenticated_restore`와 `device_request_unavailable`의 observed가 정확히 `not_run`인지 확인합니다. 최신 커밋의 두 주소로 12단계에 다시 제출하면 공식 격리 실행 결과를 확인할 수 있습니다.

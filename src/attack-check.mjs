@@ -24,6 +24,12 @@ export async function runAttackChecks(config) {
   if (config.step >= 12) checks.push({ attackId: 'operations_actual_records', path: '/api/checks',
     expected: 'HTTP 200; measured self-checks with timestamps; engine receipts separate', kind: 'operations' });
   for (const check of checks) {
+    // The judge bundle sandbox allows only public HTTPS GET/HEAD requests.
+    // Keep write-dependent checks visible without sending or fabricating them.
+    if (!['GET', 'HEAD'].includes(check.method ?? 'GET')) {
+      results.push({ attackId: check.attackId, expected: check.expected, observed: 'not_run' });
+      continue;
+    }
     const response = await fetch(new URL(check.path, base), {
       redirect: 'error', signal: AbortSignal.timeout(15000),
       method: check.method ?? 'GET',
