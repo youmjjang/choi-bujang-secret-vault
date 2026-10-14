@@ -206,3 +206,7 @@ node --experimental-vm-modules --test test/device-approval.test.mjs test/api-res
 심판은 읽기 점검 6건에 대해 해당 attackId의 요청 기록을 찾지 못했습니다. `src/attack-check.mjs`의 실제 fetch에 공식 표본의 runner 메타데이터 `alephEvidence: {caseId: check.attackId, requestKey: "read"}`를 추가했습니다. 이는 HTTP 헤더·사용자 신원·권한 입력이 아니며, 실제 요청을 제출 점검 ID와 연결하기 위한 정보입니다. 없는 요청을 생성해 기록하지 않습니다.
 
 읽기 전용 회귀 시험은 실제 전송 함수에 넘긴 caseId와 미실행을 제외한 묶음 attackId가 6건 모두 일치하고 중복되지 않는지 검증합니다. POST 두 건은 계속 observed `not_run`입니다. 해당 시험과 1,296개 가상 조합의 판정기 계약 검사가 통과했습니다. 자료 API·판정기·화면 수치 계산은 바꾸지 않았습니다. 공식 격리 환경의 연결 확인은 최신 커밋을 다시 제출해 시행합니다.
+
+### 12단계 관측값 형식 수정 (2026-10-14)
+
+실행 기록 대조가 실제 요청 ID 연결을 통과한 뒤 `observed`의 설명 문장 때문에 거부됐습니다. 실행한 읽기 점검의 observed는 실제 응답의 `HTTP <상태 코드>`만 기록하도록 수정했습니다. `PASS/FAIL`, 경로 설명, 자기 점검 설명은 관측값에 넣지 않습니다. POST 두 건은 계속 정확히 `not_run`입니다. 기대 결과와 실제 관측값을 구분하며, 공식 심판 결과를 추측으로 채우지 않습니다. 읽기 전용 회귀 시험에서 실제 전송 ID와 이 관측값 형식이 모두 검증됐습니다. 다른 API·화면·판정기는 변경하지 않았습니다.

@@ -62,7 +62,7 @@ export async function runAttackChecks(config) {
         && Object.keys(parsed).length === 1;
     }
     results.push({ attackId: check.attackId, expected: check.expected,
-      observed: `Actual ${check.method ?? 'GET'} ${check.path}: HTTP ${response.status}; ${passed ? 'PASS' : 'FAIL'}; non-mutating self-check, not judge verdict` });
+      observed: `HTTP ${response.status}` });
   }
   return results;
 }

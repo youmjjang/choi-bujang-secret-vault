@@ -28,6 +28,8 @@ test('bundle sends only HTTPS GET/HEAD and leaves both POST checks not_run', asy
     assert.equal(records.length, 8);
     assert.deepEqual(evidence, records.filter(record => record.observed !== 'not_run').map(record => record.attackId));
     assert.equal(new Set(evidence).size, 6);
+    for (const record of records.filter(record => record.observed !== 'not_run'))
+      assert.match(record.observed, /^HTTP [1-5][0-9]{2}$/u);
     for (const id of ['unauthenticated_restore', 'device_request_unavailable'])
       assert.equal(records.find(row => row.attackId === id).observed, 'not_run');
     assert(!calls.some(path => path.startsWith('/api/restore/') || path === '/api/device/request'));
