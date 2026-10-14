@@ -210,3 +210,13 @@ node --experimental-vm-modules --test test/device-approval.test.mjs test/api-res
 ### 12단계 관측값 형식 수정 (2026-10-14)
 
 실행 기록 대조가 실제 요청 ID 연결을 통과한 뒤 `observed`의 설명 문장 때문에 거부됐습니다. 실행한 읽기 점검의 observed는 실제 응답의 `HTTP <상태 코드>`만 기록하도록 수정했습니다. `PASS/FAIL`, 경로 설명, 자기 점검 설명은 관측값에 넣지 않습니다. POST 두 건은 계속 정확히 `not_run`입니다. 기대 결과와 실제 관측값을 구분하며, 공식 심판 결과를 추측으로 채우지 않습니다. 읽기 전용 회귀 시험에서 실제 전송 ID와 이 관측값 형식이 모두 검증됐습니다. 다른 API·화면·판정기는 변경하지 않았습니다.
+
+## 보너스 xdr-03 저장점: 알려진 취약점 악용
+
+일반 12단계 판정기·자료 API를 보존하고 `xdr/known-cve/`에 별도 모듈을 추가했습니다. 공식 24건 경보 원본을 바이트 동일하게 가져왔으며, 확인용 읽기 모듈은 다섯 항목만 추출하고 비밀값을 가립니다. `decide.mjs`는 두 근거 패턴을 상수로 보관하고 단독으로 판단합니다. import·파일 입출력·외부 요청은 없습니다.
+
+응답 연결은 확신도 0.85 이상의 신선한 경보와 서버가 연결한 검증 요청에만 5분 만료 규칙을 만듭니다. IP·계정명을 ZTNA 가명 신원으로 추정하지 않습니다. 생성 규칙과 한 줄 알림 로그는 Git에서 제외합니다. 운영 엔진 등록 계약이 없어 실제 엔진 자동 연결은 미실행이며, 합성 요청을 사용한 24건 재흐름·정상 통과·만료 시험을 포함해 로컬 시험 8개가 통과했습니다.
+
+2026-10-14에 `npm run xdr:run -- known-cve`를 다시 실제 실행해 `xdr/known-cve/result.json`을 갱신했습니다. 결과는 **block 8 · alert 0 · record 16**, 원본 정상 이벤트 `kc-17`~`kc-24` 8건의 block은 0건입니다. 이 fixture에는 현재 두 패턴의 부분 구문/명시적 도구명만 맞는 경보가 없어 alert는 0이며, 별도 합성 경보로 alert 분기를 시험했습니다. 심판 판정이나 운영 PC 차단을 실측한 결과로 보고하지 않습니다.
+
+다시 실행: `npm run xdr:run -- known-cve`. 판단·읽기·응답 연결 재시험: `node --experimental-vm-modules --test test/known-cve-respond.test.mjs test/known-cve-decide.test.mjs test/known-cve-reader.test.mjs`.

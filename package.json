@@ -10,6 +10,7 @@
     "decider:test": "node scripts/decider-test.mjs",
     "decider:contract": "node --test test/decider-contract.test.mjs",
     "detect:test": "node scripts/detect-test.mjs",
+    "xdr:run": "node scripts/xdr-run.mjs",
     "fixture:7": "node scripts/fixture-7.mjs"
   },
   "engines": {
